@@ -1,6 +1,6 @@
-import { PagePlaceholder } from '@/components/PagePlaceholder'
+import { PendingOAuthCallbackPage } from '@/features/auth/oauth/PendingOAuthCallbackPage'
+import { t } from '@/i18n'
 
-// /auth/dingtalk/callback —— 占位页，后续轮次替换为 src/features 中的真实实现
 export default function Page() {
-  return <PagePlaceholder name="DingTalkOAuthCallback" />
+  return <PendingOAuthCallbackPage provider="dingtalk" providerName={t('auth.dingtalkProviderName')} />
 }

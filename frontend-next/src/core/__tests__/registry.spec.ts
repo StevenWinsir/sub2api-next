@@ -107,6 +107,7 @@ describe('route registry', () => {
       '/forgot-password',
       '/reset-password',
       '/auth/callback',
+      '/auth/oauth/callback',
       '/auth/linuxdo/callback',
       '/auth/wechat/callback',
       '/auth/dingtalk/callback',

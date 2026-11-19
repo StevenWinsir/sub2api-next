@@ -16,9 +16,22 @@ type LocaleMessages = Record<string, unknown>
 
 const DEFAULT_LOCALE: LocaleCode = 'en'
 
-const localeLoaders: Record<LocaleCode, () => Promise<{ default: LocaleMessages }>> = {
-  en: () => import('./locales/en'),
-  zh: () => import('./locales/zh')
+/**
+ * 语言包按 scope 分块（首屏 JS 预算）：
+ *  - core：首屏加载（公共页、认证页、安装向导）；
+ *  - console：admin.* / adminAccessKeys.*（体量最大），控制台布局（用户 / 管理）渲染前按需加载。
+ */
+export type LocaleScope = 'core' | 'console'
+
+const localeLoaders: Record<LocaleScope, Record<LocaleCode, () => Promise<{ default: LocaleMessages }>>> = {
+  core: {
+    en: () => import('./locales/en/core'),
+    zh: () => import('./locales/zh/core')
+  },
+  console: {
+    en: () => import('./locales/en/console'),
+    zh: () => import('./locales/zh/console')
+  }
 }
 
 export const availableLocales = [
@@ -44,7 +57,8 @@ export function detectLocale(): LocaleCode {
 
 let instance: I18nInstance | null = null
 let currentLocale: LocaleCode | null = null
-const loadedLocales = new Set<LocaleCode>()
+const loadedBundles = new Set<string>() // `${scope}:${locale}`
+const requestedScopes = new Set<LocaleScope>(['core'])
 const listeners = new Set<(locale: LocaleCode) => void>()
 
 function ensureInstance(): I18nInstance {
@@ -81,11 +95,23 @@ export function getLocale(): LocaleCode {
   return currentLocale
 }
 
-export async function loadLocaleMessages(locale: LocaleCode): Promise<void> {
-  if (loadedLocales.has(locale)) return
-  const loaded = await localeLoaders[locale]()
+export async function loadLocaleMessages(locale: LocaleCode, scope: LocaleScope = 'core'): Promise<void> {
+  const id = `${scope}:${locale}`
+  if (loadedBundles.has(id)) return
+  const loaded = await localeLoaders[scope][locale]()
   ensureInstance().addResourceBundle(locale, 'translation', normalizeMessages(loaded.default), true, true)
-  loadedLocales.add(locale)
+  loadedBundles.add(id)
+}
+
+/** 确保某个 scope 的当前语言包已就绪（切换语言时也会随之加载）。 */
+export async function ensureLocaleScope(scope: LocaleScope): Promise<void> {
+  requestedScopes.add(scope)
+  await loadLocaleMessages(getLocale(), scope)
+}
+
+/** 路由布局所需的 scope：控制台布局（用户 / 管理）需要 console 语言包。 */
+export function scopeForLayout(layout: string | null | undefined): LocaleScope {
+  return layout === 'console-admin' || layout === 'console-user' ? 'console' : 'core'
 }
 
 export function onLocaleChange(listener: (locale: LocaleCode) => void): () => void {
@@ -95,8 +121,7 @@ export function onLocaleChange(listener: (locale: LocaleCode) => void): () => vo
 
 export async function initI18n(): Promise<void> {
   const current = getLocale()
-  // fallback 语言先于当前语言就绪，避免缺键时回显键名
-  if (current !== DEFAULT_LOCALE) await loadLocaleMessages(DEFAULT_LOCALE)
+  // 只加载当前语言（首屏 JS 预算）：中英键集合一致由 localeKeyCompleteness 测试保证，fallback 只兜底已加载的英文
   await loadLocaleMessages(current)
   await ensureInstance().changeLanguage(current)
   document.documentElement.setAttribute('lang', current)
@@ -104,7 +129,7 @@ export async function initI18n(): Promise<void> {
 
 export async function setLocale(locale: string): Promise<void> {
   if (!isLocaleCode(locale)) return
-  await loadLocaleMessages(locale)
+  await Promise.all([...requestedScopes].map((scope) => loadLocaleMessages(locale, scope)))
   currentLocale = locale
   await ensureInstance().changeLanguage(locale)
   try {

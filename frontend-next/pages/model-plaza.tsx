@@ -1,6 +1,5 @@
-import { PagePlaceholder } from '@/components/PagePlaceholder'
+import { ModelPlazaPage } from '@/features/model-plaza/ModelPlazaPage'
 
-// /model-plaza —— 占位页，后续轮次替换为 src/features 中的真实实现
 export default function Page() {
-  return <PagePlaceholder name="ModelPlaza" />
+  return <ModelPlazaPage />
 }

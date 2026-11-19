@@ -3,7 +3,8 @@
  * 令牌与用户的持久化键不变；定时器放在模块级并保证幂等（兼容 StrictMode 双执行）。
  */
 import { create } from 'zustand'
-import { authAPI, isTotp2FARequired, passkeyAPI, type LoginResponse } from '@/api'
+import { authAPI, isTotp2FARequired, type LoginResponse } from '@/api/auth'
+import { passkeyAPI } from '@/api/passkey'
 import type { User, LoginRequest, RegisterRequest, AuthResponse, ActionCaptchaRequestProof } from '@/types'
 import { STORAGE_KEYS } from '@/constants/storage'
 import { readStorage, removeStorage, writeStorage } from './storage'

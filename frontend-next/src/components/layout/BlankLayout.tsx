@@ -4,7 +4,7 @@ import * as React from 'react'
 export function BlankLayout({ children }: { children: React.ReactNode }) {
   return (
     <main id="main-content" className="flex min-h-dvh items-center justify-center bg-background p-4">
-      <div className="w-full max-w-lg">{children}</div>
+      <div className="w-full max-w-xl">{children}</div>
     </main>
   )
 }

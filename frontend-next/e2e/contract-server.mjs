@@ -173,7 +173,7 @@ async function handleApi(req, res, url) {
     state.settings = { ...state.settings, ...(await readBody(req)) }
     return json(res, 200, state.settings)
   }
-  if (url.pathname === '/setup/status') return ok(res, { needs_setup: mode === 'setup' })
+  if (url.pathname === '/setup/status') return ok(res, { needs_setup: mode === 'setup' && !state.installed })
   if (url.pathname === '/api/v1/settings/public') return ok(res, state.settings)
 
   if (url.pathname === '/api/v1/auth/login' && req.method === 'POST') {
@@ -213,6 +213,181 @@ async function handleApi(req, res, url) {
     const user = tokens.get(auth)
     if (!user) return fail(res, 401, 'TOKEN_EXPIRED', 'token expired')
     return ok(res, { ...user, run_mode: 'standard' })
+  }
+  // ───────── R2：认证 / 安装向导 / 公共页的假接口 ─────────
+  if (url.pathname === '/__contract/issue') {
+    // 为测试构造 OAuth 回调 fragment：按邮箱签发一组有效令牌
+    const entry = USERS[url.searchParams.get('email') || 'user@example.com']
+    return json(res, 200, issue(entry.user))
+  }
+  if (url.pathname === '/api/v1/auth/oauth/pending/exchange')
+    return json(res, 400, {
+      code: 400,
+      message: 'no pending oauth session',
+      reason: 'PENDING_SESSION_MISSING'
+    })
+  if (url.pathname === '/api/v1/auth/validate-promo-code' && req.method === 'POST') {
+    const body = await readBody(req)
+    return body.code === 'PROMO5'
+      ? ok(res, { valid: true, bonus_amount: 5 })
+      : ok(res, { valid: false, error_code: 'PROMO_CODE_NOT_FOUND' })
+  }
+  if (url.pathname === '/api/v1/auth/validate-invitation-code' && req.method === 'POST') {
+    const body = await readBody(req)
+    return ok(
+      res,
+      body.code === 'INVITE1' ? { valid: true } : { valid: false, error_code: 'INVITATION_CODE_INVALID' }
+    )
+  }
+  if (url.pathname === '/api/v1/auth/send-verify-code' && req.method === 'POST')
+    return ok(res, { message: 'sent', countdown: 60 })
+  if (url.pathname === '/api/v1/auth/register' && req.method === 'POST') {
+    const body = await readBody(req)
+    if (state.settings.email_verify_enabled && body.verify_code !== '123456')
+      return json(res, 400, {
+        code: 400,
+        message: 'Invalid verification code',
+        reason: 'INVALID_VERIFY_CODE'
+      })
+    if (USERS[body.email])
+      return json(res, 409, { code: 409, message: 'Email already registered', reason: 'EMAIL_EXISTS' })
+    const user = {
+      id: 100 + state.tokenCounter,
+      email: body.email,
+      username: body.email.split('@')[0],
+      role: 'user',
+      balance: 0
+    }
+    USERS[body.email] = { password: body.password, user }
+    return ok(res, issue(user))
+  }
+  if (url.pathname === '/api/v1/auth/forgot-password' && req.method === 'POST')
+    return ok(res, { message: 'sent' })
+  if (url.pathname === '/api/v1/auth/reset-password' && req.method === 'POST') {
+    const body = await readBody(req)
+    if (body.token !== 'good-token')
+      return json(res, 400, { code: 400, message: 'bad token', reason: 'INVALID_RESET_TOKEN' })
+    return ok(res, { message: 'reset' })
+  }
+  if (url.pathname === '/api/v1/model-plaza')
+    return ok(res, {
+      description: '**Prices** are per 1M tokens.',
+      groups: [
+        {
+          id: 1,
+          name: 'Claude Pro',
+          description: 'Claude group',
+          platform: 'anthropic',
+          subscription_type: 'standard',
+          rate_multiplier: 0.5,
+          peak_rate_enabled: false,
+          peak_start: '',
+          peak_end: '',
+          peak_rate_multiplier: 1,
+          is_exclusive: false,
+          image_rate_independent: false,
+          image_rate_multiplier: 1,
+          video_rate_independent: false,
+          video_rate_multiplier: 1,
+          long_context_pricing_enabled: true,
+          models: [
+            {
+              name: 'claude-sonnet-x',
+              platform: 'anthropic',
+              pricing: { billing_mode: 'token', input_price: 0.000003, output_price: 0.000015 },
+              official_pricing: {
+                input_price: 0.000003,
+                output_price: 0.000015,
+                cache_write_price: null,
+                cache_read_price: null
+              }
+            }
+          ]
+        },
+        {
+          id: 2,
+          name: 'GPT Team',
+          description: '',
+          platform: 'openai',
+          subscription_type: 'standard',
+          rate_multiplier: 1,
+          peak_rate_enabled: false,
+          peak_start: '',
+          peak_end: '',
+          peak_rate_multiplier: 1,
+          is_exclusive: false,
+          image_rate_independent: false,
+          image_rate_multiplier: 1,
+          video_rate_independent: false,
+          video_rate_multiplier: 1,
+          long_context_pricing_enabled: true,
+          models: [{ name: 'gpt-x', platform: 'openai', pricing: null, official_pricing: null }]
+        }
+      ]
+    })
+  if (url.pathname === '/api/v1/user/mcp/authorize') {
+    if (req.method === 'GET')
+      return ok(res, {
+        client_id: url.searchParams.get('client_id'),
+        client_name: 'Demo MCP Client',
+        redirect_uri: url.searchParams.get('redirect_uri'),
+        resource: url.searchParams.get('resource'),
+        scope: 'mcp'
+      })
+    const body = await readBody(req)
+    const target = new URL(body.authorization.redirect_uri)
+    target.searchParams.set(body.approved ? 'code' : 'error', body.approved ? 'granted' : 'access_denied')
+    return ok(res, { redirect_url: target.toString() })
+  }
+  if (url.pathname === '/v1/usage') {
+    if (auth !== 'sk-valid') return json(res, 401, { error: { message: 'Invalid API key' } })
+    return json(res, 200, {
+      mode: 'quota_limited',
+      isValid: true,
+      status: 'active',
+      quota: { limit: 10, used: 1, remaining: 9, unit: 'USD' },
+      usage: {
+        today: { requests: 1, actual_cost: 0.01 },
+        total: { requests: 12, actual_cost: 0.12 },
+        rpm: 0,
+        tpm: 0
+      },
+      daily_usage: [
+        {
+          date: '2026-05-19',
+          requests: 12,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_read_tokens: 30,
+          cache_write_tokens: 10,
+          cost: 0.15,
+          actual_cost: 0.12
+        }
+      ],
+      model_stats: [
+        {
+          model: 'claude-sonnet-x',
+          requests: 12,
+          input_tokens: 100,
+          output_tokens: 200,
+          cache_creation_tokens: 10,
+          cache_read_tokens: 30,
+          total_tokens: 340,
+          actual_cost: 0.12
+        }
+      ]
+    })
+  }
+  if (url.pathname === '/setup/test-db' && req.method === 'POST') {
+    const body = await readBody(req)
+    return body.password === 'bad'
+      ? json(res, 400, { code: 400, message: 'connection refused' })
+      : ok(res, {})
+  }
+  if (url.pathname === '/setup/test-redis' && req.method === 'POST') return ok(res, {})
+  if (url.pathname === '/setup/install' && req.method === 'POST') {
+    state.installed = true
+    return ok(res, { message: 'ok', restart: true })
   }
   if (url.pathname.startsWith('/api/v1/admin/compliance')) return ok(res, { required: false, version: 'v1' })
   if (url.pathname.startsWith('/api/v1/')) return ok(res, [])

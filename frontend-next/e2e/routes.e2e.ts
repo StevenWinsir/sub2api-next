@@ -22,6 +22,7 @@ const ROUTES = [
   '/forgot-password',
   '/reset-password',
   '/auth/callback',
+  '/auth/oauth/callback',
   '/auth/linuxdo/callback',
   '/auth/wechat/callback',
   '/auth/dingtalk/callback',
@@ -106,8 +107,12 @@ test.describe('deep links as a signed-in administrator (normal mode)', () => {
       } else {
         expect(url.pathname).toBe(expected)
         expect(url.search).toBe('?page=2&q=a')
-        expect(url.hash).toBe('#frag')
-        await expect(page.getByTestId('route-placeholder').or(page.getByTestId('not-found'))).toHaveCount(1)
+        // OAuth 回调页读取 fragment 后会立即清除它（令牌不应留在地址栏）
+        expect(url.hash).toBe(
+          /^\/auth\/(oauth\/|linuxdo\/|wechat\/|dingtalk\/|oidc\/)?callback$/.test(route) ? '' : '#frag'
+        )
+        // R1 占位页或 R2 起的真实页面：外壳统一带 data-route-name
+        await expect(page.locator('[data-route-name]').first()).toBeAttached()
       }
 
       await page.reload()
@@ -161,12 +166,12 @@ test.describe('anonymous access (normal mode)', () => {
   })
 
   test('public routes render without login and OAuth fragment survives', async ({ page }) => {
-    for (const route of ['/home', '/key-usage', '/legal/terms', '/model-plaza', '/auth/callback']) {
-      await page.goto(`${route}?code=1#access_token=t`)
+    for (const route of ['/home', '/key-usage', '/legal/terms', '/model-plaza']) {
+      await page.goto(`${route}?code=1#frag`)
       await settle(page)
       expect(new URL(page.url()).pathname).toBe(route)
-      expect(new URL(page.url()).hash).toBe('#access_token=t')
-      await expect(page.getByTestId('route-placeholder')).toBeVisible()
+      expect(new URL(page.url()).hash).toBe('#frag')
+      await expect(page.locator('#main-content')).toBeVisible()
     }
   })
 

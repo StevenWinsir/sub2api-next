@@ -1,6 +1,5 @@
-import { PagePlaceholder } from '@/components/PagePlaceholder'
+import { PendingOAuthCallbackPage } from '@/features/auth/oauth/PendingOAuthCallbackPage'
 
-// /auth/oidc/callback —— 占位页，后续轮次替换为 src/features 中的真实实现
 export default function Page() {
-  return <PagePlaceholder name="OIDCOAuthCallback" />
+  return <PendingOAuthCallbackPage provider="oidc" providerName={'OIDC'} />
 }

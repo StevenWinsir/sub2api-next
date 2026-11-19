@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { adminAPI } from '@/api'
+// 管理端 API 体量很大（35 个模块）：只在管理员会话真正拉取设置时才动态加载，避免进入公共页的首屏包
 import type { CustomMenuItem } from '@/types'
 import { STORAGE_KEYS } from '@/constants/storage'
 import { readCachedBool, readCachedString, writeCachedBool, writeStorage } from './storage'
@@ -42,6 +42,7 @@ export const useAdminSettingsStore = create<AdminSettingsStore>((set, get) => ({
     if (get().loading) return
     set({ loading: true })
     try {
+      const { adminAPI } = await import('@/api/admin')
       const [settings, paymentConfigResp] = await Promise.all([
         adminAPI.settings.getSettings(),
         adminAPI.payment.getConfig()

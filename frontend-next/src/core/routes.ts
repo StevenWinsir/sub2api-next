@@ -129,6 +129,17 @@ export const ROUTES: readonly RouteDef[] = [
     ...pub
   },
   {
+    // 后端的 GitHub / Google 登录回跳地址（Vue 版 route alias），与 /auth/callback 共用同一页面实现
+    path: '/auth/oauth/callback',
+    name: 'OAuthCallbackAlias',
+    layout: 'blank',
+    title: 'OAuth Callback',
+    titleKey: 'auth.oauthCallbackPageTitle',
+    backendWhitelist: true,
+    round: 2,
+    ...pub
+  },
+  {
     path: '/auth/linuxdo/callback',
     name: 'LinuxDoOAuthCallback',
     layout: 'blank',
