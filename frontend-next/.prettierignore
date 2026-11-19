@@ -1,0 +1,9 @@
+out
+.next
+node_modules
+src/i18n/locales
+src/api
+src/utils
+src/types
+src/constants/platformCatalog.builtin.json
+pnpm-lock.yaml

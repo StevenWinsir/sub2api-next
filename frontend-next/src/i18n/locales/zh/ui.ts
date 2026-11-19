@@ -1,0 +1,126 @@
+/** 新前端（Next.js）新增的界面文案，独立命名空间 `ui`，不改动与上游同步的语言包文件。 */
+export default {
+  ui: {
+    navGroup: {
+      overview: '概览',
+      api: 'API',
+      resources: '资源',
+      billing: '账单',
+      growth: '增长',
+      account: '账户',
+      users: '用户与订阅',
+      channels: '渠道与账号',
+      commerce: '商业',
+      content: '内容',
+      security: '安全合规',
+      system: '系统',
+      custom: '自定义'
+    },
+    shell: {
+      skipToContent: '跳到主要内容',
+      search: '搜索',
+      searchPlaceholder: '搜索页面和快捷操作…',
+      commandPalette: '命令面板',
+      noResults: '没有找到结果。',
+      pages: '页面',
+      actions: '快捷操作',
+      toggleTheme: '切换主题',
+      themeLight: '浅色',
+      themeDark: '深色',
+      themeSystem: '跟随系统',
+      language: '语言',
+      userMenu: '用户菜单',
+      userConsole: '用户控制台',
+      adminConsole: '管理后台',
+      signOut: '退出登录',
+      collapseSidebar: '收起侧边栏',
+      expandSidebar: '展开侧边栏',
+      openMenu: '打开菜单',
+      closeMenu: '关闭菜单',
+      notifications: '公告',
+      copyApiBase: '复制 API 地址',
+      copied: '已复制到剪贴板',
+      balance: '余额',
+      home: '首页',
+      docs: '文档',
+      contact: '联系方式',
+      legal: '法律文档'
+    },
+    boot: {
+      loading: '加载中…',
+      errorTitle: '页面无法加载',
+      errorDescription: '应用启动时反复重定向。这通常发生在版本更新后，浏览器仍缓存着旧文件。',
+      clearCacheRetry: '清除缓存并重试'
+    },
+    notFound: {
+      title: '页面不存在',
+      description: '你访问的页面不存在，或已被移动。',
+      backHome: '返回首页'
+    },
+    placeholder: {
+      badge: '建设中',
+      description: '该页面已登记到路由表，将在后续交付轮次中实现。',
+      route: '路由',
+      layout: '布局',
+      access: '访问权限',
+      round: '交付轮次',
+      params: '路径参数',
+      accessPublic: '公开',
+      accessUser: '登录用户',
+      accessAdmin: '管理员',
+      flags: '门禁',
+      flagPayment: '需开启支付',
+      flagRiskControl: '需开启风控',
+      flagSubscription: '需开启订阅',
+      flagSimple: '简易模式下禁止访问',
+      flagBackend: '后端模式下可访问',
+      none: '无'
+    },
+    login: {
+      title: '欢迎回来',
+      subtitle: '登录账号以继续',
+      email: '邮箱',
+      password: '密码',
+      submit: '登录',
+      submitting: '登录中…',
+      sessionExpired: '登录已过期，请重新登录。',
+      brandTagline: '一个网关，连接所有 AI 模型。',
+      brandPoint1: '统一 API，接入主流模型服务商',
+      brandPoint2: '用量、账单与配额清晰透明',
+      brandPoint3: '为可靠、安全与规模而生',
+      totpTitle: '两步验证',
+      totpDescription: '请输入验证器应用中的 6 位验证码。',
+      totpCode: '验证码',
+      totpSubmit: '验证',
+      alreadySignedIn: '你已登录。'
+    },
+    table: {
+      noData: '暂无数据',
+      rowsPerPage: '每页条数',
+      pageOf: '第 {page} / {total} 页',
+      previous: '上一页',
+      next: '下一页',
+      selected: '已选 {count} 项',
+      columns: '列'
+    },
+    common: {
+      copy: '复制',
+      copied: '已复制',
+      confirm: '确认',
+      cancel: '取消',
+      clear: '清除',
+      reset: '重置',
+      close: '关闭',
+      search: '搜索',
+      required: '此项为必填',
+      pickDateRange: '选择日期范围',
+      status: {
+        success: '成功',
+        warning: '警告',
+        error: '错误',
+        info: '提示',
+        neutral: '中性'
+      }
+    }
+  }
+}
