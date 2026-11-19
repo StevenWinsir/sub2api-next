@@ -94,7 +94,9 @@ export function AppRoot({ Component, pageProps }: AppProps) {
   const asPath = router.asPath
 
   // 深链纠正决策：纯函数，读取真实地址（仅客户端且启动完成后；首次渲染 / 预渲染不会走到这里）
-  const bootDecision = started && isBootPage ? decideBoot(window.location) : null
+  // 第一跳进行中（地址已带内部标记，但 router.pathname 还没切换）时不再做新的纠正决策，否则会反复纠正
+  const correctionInFlight = started && isBootPage && window.location.search.includes(BOOT_MARK)
+  const bootDecision = started && isBootPage && !correctionInFlight ? decideBoot(window.location) : null
   const bootLoop = bootDecision?.type === 'replace' && isBootLoop(safeSession() ?? { getItem: () => null })
 
   // 1) 启动序列（单例）+ 全局事件桥
@@ -118,7 +120,7 @@ export function AppRoot({ Component, pageProps }: AppProps) {
   const correctedTo = React.useRef<string | null>(null)
   const correctionTarget = bootDecision?.type === 'replace' && !bootLoop ? bootDecision.to : null
   React.useEffect(() => {
-    if (!correctionTarget || correctedTo.current === correctionTarget) return
+    if (!correctionTarget || correctedTo.current) return // 每个 Boot 生命周期只纠正一次
     correctedTo.current = correctionTarget
     const storage = safeSession()
     if (storage) recordCorrection(storage)
