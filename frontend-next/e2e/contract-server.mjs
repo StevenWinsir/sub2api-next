@@ -148,6 +148,332 @@ async function readBody(req) {
   }
 }
 
+// ───────── R3：用户控制台状态与处理器（密钥 / 兑换 / 支付订单）─────────
+const consoleState = {
+  keys: [
+    {
+      id: 1,
+      user_id: 2,
+      key: 'sk-seed-0000000000000000',
+      name: 'seed-key',
+      group_id: 1,
+      status: 'active',
+      ip_whitelist: [],
+      ip_blacklist: [],
+      last_used_at: null,
+      last_used_ip: null,
+      quota: 0,
+      quota_used: 0,
+      expires_at: null,
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      current_concurrency: 0,
+      rate_limit_5h: 0,
+      rate_limit_1d: 0,
+      rate_limit_7d: 0,
+      usage_5h: 0,
+      usage_1d: 0,
+      usage_7d: 0,
+      window_5h_start: null,
+      window_1d_start: null,
+      window_7d_start: null,
+      reset_5h_at: null,
+      reset_1d_at: null,
+      reset_7d_at: null
+    }
+  ],
+  nextKeyId: 2,
+  redeemHistory: [],
+  orders: [],
+  nextOrderId: 1,
+  redeemed: new Set()
+}
+const GROUPS = [
+  {
+    id: 1,
+    name: 'Claude Pro',
+    description: 'Claude group',
+    platform: 'anthropic',
+    rate_multiplier: 1,
+    is_exclusive: false,
+    status: 'active',
+    subscription_type: 'standard',
+    peak_rate_enabled: false,
+    peak_start: '',
+    peak_end: '',
+    peak_rate_multiplier: 1,
+    daily_limit_usd: null,
+    weekly_limit_usd: null,
+    monthly_limit_usd: null
+  }
+]
+const CHECKOUT = {
+  methods: {
+    alipay: {
+      display_name: '',
+      daily_limit: 0,
+      daily_used: 0,
+      daily_remaining: 0,
+      single_min: 1,
+      single_max: 1000,
+      fee_rate: 0,
+      available: true,
+      currency: 'CNY'
+    }
+  },
+  global_min: 1,
+  global_max: 1000,
+  plans: [],
+  balance_disabled: false,
+  balance_recharge_multiplier: 1,
+  subscription_usd_to_cny_rate: 0,
+  recharge_fee_rate: 0,
+  help_text: '',
+  help_image_url: '',
+  stripe_publishable_key: ''
+}
+const orderView = (o) => ({
+  id: o.id,
+  user_id: 2,
+  amount: o.amount,
+  pay_amount: o.amount,
+  fee_rate: 0,
+  payment_type: o.payment_type,
+  out_trade_no: `OT-${o.id}`,
+  status: o.polls >= 2 ? 'COMPLETED' : 'PENDING',
+  order_type: 'balance',
+  created_at: o.created_at,
+  expires_at: o.expires_at,
+  refund_amount: 0,
+  currency: 'CNY'
+})
+
+/** 返回 true 表示已处理。仅覆盖 E2E 用到的路径，其余仍走通用空响应。 */
+function handleUserConsole(req, res, url) {
+  const path = url.pathname.replace('/api/v1', '')
+  const method = req.method
+  if (path === '/groups/available') return (ok(res, GROUPS), true)
+  if (path === '/groups/rates') return (ok(res, {}), true)
+  if (path === '/usage/dashboard/stats')
+    return (
+      ok(res, {
+        total_api_keys: consoleState.keys.length,
+        active_api_keys: consoleState.keys.filter((k) => k.status === 'active').length,
+        total_requests: 5,
+        total_input_tokens: 10,
+        total_output_tokens: 20,
+        total_cache_creation_tokens: 0,
+        total_cache_read_tokens: 0,
+        total_tokens: 30,
+        total_cost: 0.5,
+        total_actual_cost: 0.4,
+        today_requests: 2,
+        today_input_tokens: 4,
+        today_output_tokens: 6,
+        today_cache_creation_tokens: 0,
+        today_cache_read_tokens: 0,
+        today_tokens: 10,
+        today_cost: 0.2,
+        today_actual_cost: 0.1,
+        average_duration_ms: 420,
+        rpm: 1,
+        tpm: 30,
+        by_platform: []
+      }),
+      true
+    )
+  if (path === '/usage/dashboard/trend')
+    return (ok(res, { trend: [], start_date: '', end_date: '', granularity: 'day' }), true)
+  if (path === '/usage/dashboard/models') return (ok(res, { models: [] }), true)
+  if (path === '/usage/dashboard/api-keys-usage') return (ok(res, { stats: {} }), true)
+  if (path === '/user/platform-quotas') return (ok(res, { platform_quotas: [] }), true)
+  if (path === '/usage' || path === '/usage/stats')
+    return (
+      ok(
+        res,
+        path === '/usage'
+          ? { items: [], total: 0, page: 1, page_size: 20, pages: 0 }
+          : {
+              total_requests: 0,
+              total_input_tokens: 0,
+              total_output_tokens: 0,
+              total_cache_tokens: 0,
+              total_tokens: 0,
+              total_cost: 0,
+              total_actual_cost: 0,
+              average_duration_ms: 0,
+              endpoints: []
+            }
+      ),
+      true
+    )
+  if (path === '/keys' && method === 'GET')
+    return (
+      ok(res, {
+        items: consoleState.keys,
+        total: consoleState.keys.length,
+        page: 1,
+        page_size: 20,
+        pages: 1
+      }),
+      true
+    )
+  if (path === '/keys' && method === 'POST') {
+    readBody(req).then((body) => {
+      const key = {
+        ...consoleState.keys[0],
+        id: consoleState.nextKeyId++,
+        key: `sk-${String(Math.random()).slice(2, 20).padEnd(18, '0')}`,
+        name: body.name,
+        group_id: body.group_id ?? null,
+        group: GROUPS[0]
+      }
+      consoleState.keys.unshift(key)
+      ok(res, key)
+    })
+    return true
+  }
+  const keyMatch = path.match(/^\/keys\/(\d+)$/)
+  if (keyMatch && method === 'PUT') {
+    readBody(req).then((body) => {
+      const key = consoleState.keys.find((k) => k.id === Number(keyMatch[1]))
+      if (!key) return fail(res, 404, 'NOT_FOUND', 'not found')
+      Object.assign(key, body)
+      ok(res, key)
+    })
+    return true
+  }
+  if (keyMatch && method === 'DELETE') {
+    consoleState.keys = consoleState.keys.filter((k) => k.id !== Number(keyMatch[1]))
+    return (ok(res, { message: 'deleted' }), true)
+  }
+  if (path === '/redeem' && method === 'POST') {
+    readBody(req).then((body) => {
+      if (body.code !== 'GOOD-CODE' || consoleState.redeemed.has(body.code))
+        return json(res, 400, { code: 400, message: 'Invalid or used code', reason: 'REDEEM_CODE_INVALID' })
+      consoleState.redeemed.add(body.code)
+      consoleState.redeemHistory.unshift({
+        id: consoleState.redeemHistory.length + 1,
+        code: body.code,
+        type: 'balance',
+        value: 5,
+        status: 'used',
+        used_at: new Date().toISOString(),
+        created_at: new Date().toISOString()
+      })
+      ok(res, { message: 'ok', type: 'balance', value: 5, new_balance: 15 })
+    })
+    return true
+  }
+  if (path === '/redeem/history')
+    return (
+      ok(res, {
+        items: consoleState.redeemHistory,
+        total: consoleState.redeemHistory.length,
+        page: 1,
+        page_size: 20,
+        pages: 1
+      }),
+      true
+    )
+  if (path === '/payment/checkout-info') return (ok(res, CHECKOUT), true)
+  if (path === '/payment/config')
+    return (
+      ok(res, {
+        payment_enabled: true,
+        min_amount: 1,
+        max_amount: 1000,
+        enabled_payment_types: ['alipay'],
+        stripe_publishable_key: ''
+      }),
+      true
+    )
+  if (path === '/payment/orders' && method === 'POST') {
+    readBody(req).then((body) => {
+      const id = consoleState.nextOrderId++
+      const now = Date.now()
+      const order = {
+        id,
+        amount: body.amount,
+        payment_type: body.payment_type,
+        polls: 0,
+        created_at: new Date(now).toISOString(),
+        expires_at: new Date(now + 30 * 60000).toISOString()
+      }
+      consoleState.orders.unshift(order)
+      ok(res, {
+        order_id: id,
+        amount: body.amount,
+        pay_amount: body.amount,
+        fee_rate: 0,
+        pay_url: '',
+        qr_code: `https://qr.example.com/pay/${id}`,
+        expires_at: order.expires_at,
+        result_type: 'order_created',
+        payment_type: body.payment_type,
+        out_trade_no: `OT-${id}`,
+        payment_mode: 'qrcode',
+        resume_token: `rt-order-${id}`,
+        currency: 'CNY'
+      })
+    })
+    return true
+  }
+  if (path === '/payment/orders/my') {
+    const items = consoleState.orders.map(orderView)
+    return (ok(res, { items, total: items.length, page: 1, page_size: 20, pages: 1 }), true)
+  }
+  if (path === '/payment/public/orders/resolve' && method === 'POST') {
+    readBody(req).then((body) => {
+      const id = Number(String(body.resume_token || '').replace('rt-order-', ''))
+      const order = consoleState.orders.find((o) => o.id === id)
+      if (!order) return fail(res, 404, 'NOT_FOUND', 'not found')
+      const view = orderView(order)
+      ok(res, {
+        out_trade_no: view.out_trade_no,
+        status: view.status,
+        paid: view.status === 'COMPLETED',
+        created_at: view.created_at,
+        expires_at: view.expires_at
+      })
+    })
+    return true
+  }
+  if (path === '/payment/orders/refund-eligible-providers')
+    return (ok(res, { provider_instance_ids: [] }), true)
+  const orderMatch = path.match(/^\/payment\/orders\/(\d+)$/)
+  if (orderMatch && method === 'GET') {
+    const order = consoleState.orders.find((o) => o.id === Number(orderMatch[1]))
+    if (!order) return (fail(res, 404, 'NOT_FOUND', 'not found'), true)
+    order.polls += 1
+    return (ok(res, orderView(order)), true)
+  }
+  if (path === '/subscriptions' || path === '/subscriptions/active') return (ok(res, []), true)
+  if (path === '/user/aff')
+    return (
+      ok(res, {
+        user_id: 2,
+        aff_code: 'AFF123',
+        aff_count: 0,
+        aff_quota: 0,
+        aff_frozen_quota: 0,
+        aff_history_quota: 0,
+        effective_rebate_rate_percent: 10,
+        invitees: []
+      }),
+      true
+    )
+  if (path === '/user/profile')
+    return (
+      ok(res, {
+        ...tokens.get((req.headers.authorization || '').replace(/^Bearer /, '')),
+        run_mode: 'standard'
+      }),
+      true
+    )
+  return false
+}
+
 async function handleApi(req, res, url) {
   const record = {
     method: req.method,
@@ -389,6 +715,8 @@ async function handleApi(req, res, url) {
     state.installed = true
     return ok(res, { message: 'ok', restart: true })
   }
+  // ───────── R3：用户控制台 / 支付链路的假接口 ─────────
+  if (url.pathname.startsWith('/api/v1/') && handleUserConsole(req, res, url)) return
   if (url.pathname.startsWith('/api/v1/admin/compliance')) return ok(res, { required: false, version: 'v1' })
   if (url.pathname.startsWith('/api/v1/')) return ok(res, [])
   return json(res, 404, { code: 404, message: 'not found' })

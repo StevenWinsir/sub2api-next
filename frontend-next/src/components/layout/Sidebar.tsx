@@ -34,6 +34,13 @@ function ItemIcon({ item }: { item: NavItem }) {
   return <DynamicIcon name={item.icon} className="size-4 shrink-0" aria-hidden />
 }
 
+/** 新手引导锚点（沿用 Vue 版的元素标识）。 */
+const TOUR_IDS: Record<string, { id?: string; tour?: string }> = {
+  '/keys': { tour: 'sidebar-my-keys' },
+  '/admin/groups': { id: 'sidebar-group-manage' },
+  '/admin/accounts': { id: 'sidebar-channel-manage' }
+}
+
 function NavLink({
   item,
   collapsed,
@@ -52,6 +59,8 @@ function NavLink({
   const link = (
     <Link
       href={item.path}
+      id={TOUR_IDS[item.path]?.id}
+      data-tour={TOUR_IDS[item.path]?.tour}
       prefetch
       aria-current={active ? 'page' : undefined}
       onClick={onNavigate}

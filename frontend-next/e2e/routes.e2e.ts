@@ -135,18 +135,18 @@ test.describe('deep links as a signed-in administrator (normal mode)', () => {
     await expectClean(page, watcher)
   })
 
-  test('browser back / forward restore the right placeholder', async ({ page }) => {
+  test('browser back / forward restore the right page', async ({ page }) => {
     await page.goto('/keys')
     await settle(page)
     await page.getByRole('link', { name: 'Usage' }).first().click()
     await page.waitForURL('**/usage')
-    await expect(page.getByTestId('route-placeholder')).toHaveAttribute('data-route-name', 'Usage')
+    await expect(page.locator('[data-route-name]').first()).toHaveAttribute('data-route-name', 'Usage')
     await page.goBack()
     await page.waitForURL('**/keys')
-    await expect(page.getByTestId('route-placeholder')).toHaveAttribute('data-route-name', 'Keys')
+    await expect(page.locator('[data-route-name]').first()).toHaveAttribute('data-route-name', 'Keys')
     await page.goForward()
     await page.waitForURL('**/usage')
-    await expect(page.getByTestId('route-placeholder')).toHaveAttribute('data-route-name', 'Usage')
+    await expect(page.locator('[data-route-name]').first()).toHaveAttribute('data-route-name', 'Usage')
   })
 
   test('redirect-type routes keep query and hash', async ({ page }) => {

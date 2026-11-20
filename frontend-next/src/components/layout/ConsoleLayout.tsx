@@ -2,6 +2,8 @@ import * as React from 'react'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { Breadcrumbs } from './Breadcrumbs'
+import { AnnouncementHost } from '@/features/announcements/AnnouncementPopup'
+import { OnboardingHost } from '@/features/onboarding/OnboardingHost'
 import { QueryProvider } from '@/core/QueryProvider'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { useAppStore } from '@/stores/app'
@@ -48,6 +50,8 @@ export function ConsoleLayout({ section, children }: ConsoleLayoutProps) {
             </main>
           </div>
         </div>
+        <AnnouncementHost />
+        <OnboardingHost />
       </TooltipProvider>
     </QueryProvider>
   )

@@ -315,3 +315,121 @@
   max-width: 100%;
   height: auto;
 }
+
+/* 渠道监控健康度色阶（score0=最差 红 → score10=最好 绿；monitorFormat.healthScoreClass 输出这些类名） */
+.health-unknown {
+  background-color: var(--muted);
+}
+.health-healthy {
+  background-color: oklch(0.65 0.17 150);
+}
+.health-warning {
+  background-color: oklch(0.78 0.16 80);
+}
+.health-critical {
+  background-color: oklch(0.6 0.2 27);
+}
+.health-score0 {
+  background-color: oklch(0.58 0.21 27);
+}
+.health-score1 {
+  background-color: oklch(0.6 0.2 35);
+}
+.health-score2 {
+  background-color: oklch(0.65 0.19 45);
+}
+.health-score3 {
+  background-color: oklch(0.7 0.18 60);
+}
+.health-score4 {
+  background-color: oklch(0.76 0.17 75);
+}
+.health-score5 {
+  background-color: oklch(0.82 0.16 95);
+}
+.health-score6 {
+  background-color: oklch(0.8 0.17 115);
+}
+.health-score7 {
+  background-color: oklch(0.76 0.17 130);
+}
+.health-score8 {
+  background-color: oklch(0.72 0.17 142);
+}
+.health-score9 {
+  background-color: oklch(0.68 0.17 148);
+}
+.health-score10 {
+  background-color: oklch(0.64 0.17 152);
+}
+
+/* 新手引导（driver.js）：使用设计令牌的统一弹层样式 */
+.driver-overlay {
+  pointer-events: none !important;
+}
+.driver-overlay svg {
+  pointer-events: none !important;
+}
+.driver-active-element {
+  border-radius: 6px;
+  outline: 3px solid color-mix(in oklch, var(--primary) 35%, transparent) !important;
+}
+.driver-popover.theme-tour-popover {
+  max-width: min(440px, 92vw);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg, 10px);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 16px 40px -12px rgb(0 0 0 / 0.25);
+}
+.theme-tour-popover .driver-popover-title {
+  padding: 16px 20px 4px;
+  font-size: 16px;
+  font-weight: 600;
+}
+.theme-tour-popover .driver-popover-description {
+  padding: 4px 20px 12px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+.theme-tour-popover .driver-popover-footer {
+  margin: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.theme-tour-popover .driver-popover-footer button {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--card);
+  color: var(--foreground);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  text-shadow: none;
+}
+.theme-tour-popover .driver-popover-footer button.driver-popover-next-btn {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: transparent;
+}
+.theme-tour-popover .driver-popover-progress-text {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.theme-tour-popover .driver-popover-close-btn {
+  color: var(--muted-foreground);
+}
+.theme-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow,
+.theme-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow,
+.theme-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow,
+.theme-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+  display: none;
+}

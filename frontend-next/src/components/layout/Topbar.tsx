@@ -10,10 +10,18 @@ import { ThemeToggle } from './ThemeToggle'
 import { UserMenu } from './UserMenu'
 import { Sidebar } from './Sidebar'
 import { AnnouncementBell } from './AnnouncementBell'
+import { BalanceChip } from './BalanceChip'
+import { SubscriptionProgressMini } from './SubscriptionProgressMini'
+import { FeatureFlags, isFeatureFlagEnabled } from '@/utils/featureFlags'
+import { useAuthStore } from '@/stores/auth'
 
 export function Topbar({ section, breadcrumb }: { section: 'user' | 'admin'; breadcrumb?: React.ReactNode }) {
   const mobileOpen = useAppStore((s) => s.mobileOpen)
   const setMobileOpen = useAppStore((s) => s.setMobileOpen)
+  const user = useAuthStore((s) => s.user)
+  // 订阅功能关闭后不再露出订阅进度（订阅 store 由会话生命周期统一预加载）
+  useAppStore((s) => s.cachedPublicSettings)
+  const subscriptionEnabled = isFeatureFlagEnabled(FeatureFlags.subscription)
 
   return (
     <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/90 px-3 backdrop-blur sm:px-5">
@@ -36,6 +44,8 @@ export function Topbar({ section, breadcrumb }: { section: 'user' | 'admin'; bre
       <div className="min-w-0 flex-1">{breadcrumb}</div>
       <CommandPalette />
       <div className="flex items-center gap-0.5">
+        {user && subscriptionEnabled ? <SubscriptionProgressMini /> : null}
+        <BalanceChip />
         <AnnouncementBell />
         <LocaleSwitch />
         <ThemeToggle />
