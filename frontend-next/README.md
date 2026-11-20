@@ -2,7 +2,7 @@
 
 Sub2API 前端的 Next.js 重构（全新 UI，后端零改动）。技术规划见仓库根目录 [`handoff_frontend.md`](../handoff_frontend.md)。
 
-> 当前处于 **第 2 轮：公共站点、认证体系、安装向导**（第 1 轮基础设施已合并）。目录为 `frontend-next/`，R5 切换上线时改名为 `frontend/`。
+> 当前处于 **第 3 轮：用户控制台与商业化支付链路**（第 1、2 轮已合并）。目录为 `frontend-next/`，R5 切换上线时改名为 `frontend/`。
 
 ## 架构要点
 
@@ -60,8 +60,8 @@ e2e/              Playwright 用例与契约模拟服务
 ## 与 Vue 版的已知差异（R1）
 
 - `formatBytes.spec.ts` 测试的是 `views/admin/ops` 下的格式化工具，属于运维看板页面，随 R5 一并移植，R1 未带。
-- 管理员合规确认对话框、公告弹窗、新手引导在后续轮次实现（R1 只接好 store 与事件桥）。
-- `useBatchImageAccess` 对应的菜单显隐在 R3 接入（R1 菜单固定显示批量生图入口）。
+- 管理员合规确认对话框在 R4 实现（R1 只接好 store 与事件桥）；公告弹窗、新手引导已在 R3 实现。
+- `useBatchImageAccess` 已在 R3 实现（仪表盘“批量生图”快捷入口按可用密钥显隐；菜单入口沿用固定显示）。
 
 ## 第 2 轮交付（公共站点 / 认证 / 安装向导）
 
@@ -76,3 +76,20 @@ e2e/              Playwright 用例与契约模拟服务
 - **首屏 JS 预算**：公共页不进入主包的内容 —— 控制台外壳（含 Radix 菜单 / ⌘K）、TanStack Query（`core/QueryProvider`，随控制台外壳加载）、`TooltipProvider`、协议 / TOTP 弹窗、验证码组件、marked + DOMPurify 全部按需加载；公共布局使用轻量主题 / 语言切换。需要 Tooltip / Query 的公共页请自行包裹 `TooltipProvider` / `QueryProvider`。
 - 实测（gzip，现代浏览器，不含 nomodule polyfills）：`/home` ≈ 194KB，`/login` ≈ 202KB（目标 ≤ 200KB，`/login` 略超，后续可再把 sonner 按需化）。
 - **E2E**：`e2e/public-auth.e2e.ts`（契约模拟服务）。Passkey（虚拟认证器）、Turnstile 官方测试 sitekey、邮件捕获服务、微信 / 钉钉内置浏览器属于真实后端联调与手工验收项。
+
+## 第 3 轮交付（用户控制台 / 支付链路）
+
+页面：`/dashboard`、`/keys`、`/usage`、`/redeem`、`/affiliate`、`/available-channels`、`/monitor`（按 `channel_monitor_mode` 在 V1 / V2 之间切换）、`/subscriptions`、`/purchase`、`/orders`、`/payment/{qrcode,result,stripe,airwallex,stripe-popup}`、`/auth/wechat/payment/callback`、`/profile`、`/settings/mcp`、`/batch-image`、`/custom/[id]`；全局：公告铃与公告弹窗、新手引导（driver.js）、订阅进度迷你组件、顶栏余额（含冻结金额）。
+
+要点：
+
+- **支付纯逻辑原样移植**：`src/features/payment/{paymentFlow,providerConfig,currency,validity,alipayDeepLink,paymentUx,paymentWechatResume}.ts` 与其原 spec 逐字一致；新增 `purchaseMath.ts`（金额范围 / 手续费 / 订阅换算）与 `resultLogic.ts`（订单状态 / 恢复快照匹配），均有表驱动单测。
+- **支付恢复**：沿用 `payment.recovery.current`；Stripe / Airwallex 落地页只从本浏览器写入的快照读取 `client_secret`，且快照订单必须与 URL 订单一致。
+- **postMessage**：Stripe 弹窗握手双向校验 origin，接收侧额外要求消息来自 `window.opener`（`isTrustedInitMessage`）。
+- **轮询**：支付状态 / 二维码页 3 秒轮询带防重入与终态后丢弃迟到响应；监控与批量生图 8 秒 / 可配置自动刷新，页面不可见时暂停；定时器统一在卸载时清理，StrictMode 下幂等。
+- **使用密钥配置生成器**：`features/keys/keyConfigs.ts` 逐字移植 UseKeyModal 的各客户端 / 平台 / 操作系统模板（含 Codex 模型目录），仅把响应式引用改为显式 ctx；`keyConfigs.spec.ts` 覆盖。
+- **图表**：Recharts，经 `components/charts/LazyCharts` 动态加载，不进入首屏包；`qrcode`、`driver.js`、Stripe / Airwallex SDK 同样按需加载。
+- **新增依赖**：`recharts`（MIT）、`@airwallex/components-sdk`（MIT）。
+- **语言包守护**：`i18n/__tests__/usedKeys.spec.ts` 扫描 R3 目录中的静态 `t('…')`，要求键在中英文中都是叶子文案。
+- **E2E**：`e2e/user-console.e2e.ts`（契约模拟服务新增 keys / usage / redeem / payment 假接口）：密钥生命周期、兑换、扫码充值轮询到结果页与订单列表、支付中途刷新恢复、落地页无快照时失败闭合、微信回调重定向校验。**需真实渠道的验收项**（Stripe 测试卡含 3DS、Airwallex demo、二维码沙箱、微信 / 支付宝内置浏览器、iOS Safari / Android Chrome 充值、公告 3 秒首登弹出、新手引导走完、暗色全页检查）保留为手工验收清单。
+- 已知取舍：批量生图预览缩略图不再写入 IndexedDB 缓存（按需加载并随弹窗释放 blob URL）；渠道监控 V2 的“脉冲矩阵”为轻量热力条实现（无缩放）；用户属性表单仅管理端使用，未进入 R3。

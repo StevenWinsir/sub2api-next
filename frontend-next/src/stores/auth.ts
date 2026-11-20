@@ -81,6 +81,8 @@ interface AuthActions {
   logout: () => Promise<void>
   checkAuth: () => void
   refreshUser: () => Promise<User>
+  /** 用接口返回的最新用户资料（如更新资料后）替换当前用户，并同步 auth_user 存储。 */
+  setUser: (user: User) => void
   setPendingAuthSession: (session: PendingAuthSessionSummary | null) => void
   clearPendingAuthSession: () => void
   /** 停止全部定时器（组件卸载 / 测试清理）。 */
@@ -353,6 +355,11 @@ export const useAuthStore = create<AuthStore>((rawSet, get) => {
         if ((error as { status?: number }).status === 401) clearAuth(preservePending())
         throw error
       }
+    },
+
+    setUser(user) {
+      set({ user })
+      writeStorage(STORAGE_KEYS.authUser, JSON.stringify(user))
     },
 
     stopTimers() {

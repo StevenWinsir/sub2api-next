@@ -1,7 +1,7 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/router'
-import { LayoutDashboard, LogOut, Shield, UserRound } from 'lucide-react'
+import { GraduationCap, LayoutDashboard, LogOut, Shield, UserRound } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { useAuthStore } from '@/stores/auth'
+import { useOnboardingStore } from '@/stores/onboarding'
 import { resetSessionStores } from '@/core/session'
 import { t } from '@/i18n'
 
@@ -21,6 +22,7 @@ export function UserMenu() {
   const user = useAuthStore((s) => s.user)
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const logout = useAuthStore((s) => s.logout)
+  const isSimple = useAuthStore((s) => s.isSimpleMode)
   const name = user?.username || user?.email || ''
   const onAdmin = router.asPath.startsWith('/admin')
 
@@ -59,6 +61,12 @@ export function UserMenu() {
             {t('nav.profile')}
           </Link>
         </DropdownMenuItem>
+        {isAdmin && !isSimple ? (
+          <DropdownMenuItem onSelect={() => useOnboardingStore.getState().replay()}>
+            <GraduationCap aria-hidden />
+            {t('onboarding.restartTour')}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           destructive

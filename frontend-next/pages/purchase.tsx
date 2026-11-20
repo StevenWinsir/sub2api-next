@@ -1,6 +1,5 @@
-import { PagePlaceholder } from '@/components/PagePlaceholder'
+import { PurchasePage } from '@/features/payment/PurchasePage'
 
-// /purchase —— 占位页，后续轮次替换为 src/features 中的真实实现
 export default function Page() {
-  return <PagePlaceholder name="PurchaseSubscription" />
+  return <PurchasePage />
 }
