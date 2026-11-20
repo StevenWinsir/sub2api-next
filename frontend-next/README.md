@@ -2,7 +2,7 @@
 
 Sub2API 前端的 Next.js 重构（全新 UI，后端零改动）。技术规划见仓库根目录 [`handoff_frontend.md`](../handoff_frontend.md)。
 
-> 当前处于 **第 3 轮：用户控制台与商业化支付链路**（第 1、2 轮已合并）。目录为 `frontend-next/`，R5 切换上线时改名为 `frontend/`。
+> 当前处于 **第 4 轮：管理后台（一）核心运营资源**（第 1–3 轮已合并）。目录为 `frontend-next/`，R5 切换上线时改名为 `frontend/`。
 
 ## 架构要点
 
@@ -60,7 +60,7 @@ e2e/              Playwright 用例与契约模拟服务
 ## 与 Vue 版的已知差异（R1）
 
 - `formatBytes.spec.ts` 测试的是 `views/admin/ops` 下的格式化工具，属于运维看板页面，随 R5 一并移植，R1 未带。
-- 管理员合规确认对话框在 R4 实现（R1 只接好 store 与事件桥）；公告弹窗、新手引导已在 R3 实现。
+- 管理员合规确认对话框已在 R4 实现；公告弹窗、新手引导已在 R3 实现。
 - `useBatchImageAccess` 已在 R3 实现（仪表盘“批量生图”快捷入口按可用密钥显隐；菜单入口沿用固定显示）。
 
 ## 第 2 轮交付（公共站点 / 认证 / 安装向导）
@@ -93,3 +93,31 @@ e2e/              Playwright 用例与契约模拟服务
 - **语言包守护**：`i18n/__tests__/usedKeys.spec.ts` 扫描 R3 目录中的静态 `t('…')`，要求键在中英文中都是叶子文案。
 - **E2E**：`e2e/user-console.e2e.ts`（契约模拟服务新增 keys / usage / redeem / payment 假接口）：密钥生命周期、兑换、扫码充值轮询到结果页与订单列表、支付中途刷新恢复、落地页无快照时失败闭合、微信回调重定向校验。**需真实渠道的验收项**（Stripe 测试卡含 3DS、Airwallex demo、二维码沙箱、微信 / 支付宝内置浏览器、iOS Safari / Android Chrome 充值、公告 3 秒首登弹出、新手引导走完、暗色全页检查）保留为手工验收清单。
 - 已知取舍：批量生图预览缩略图不再写入 IndexedDB 缓存（按需加载并随弹窗释放 blob URL）；渠道监控 V2 的“脉冲矩阵”为轻量热力条实现（无缩放）；用户属性表单仅管理端使用，未进入 R3。
+
+## 第 4 轮交付（管理后台一：核心运营资源）
+
+页面（18 个）：`/admin/dashboard`、`/admin/users`、`/admin/groups`、`/admin/accounts`、`/admin/channels/pricing`、`/admin/channels/monitor`、`/admin/subscriptions`、`/admin/proxies`、`/admin/redeem`、`/admin/promo-codes`、`/admin/announcements`、`/admin/usage`、`/admin/affiliates/{invites,rebates,transfers}`、`/admin/orders`、`/admin/orders/{dashboard,plans}`；全局：管理员合规确认对话框（423 `ADMIN_COMPLIANCE_REQUIRED`，内嵌合规文档，强制确认、不可通过关闭或点击外部绕过）、Step-up TOTP 对话框（敏感操作经 `useStepUp.run` 包裹，后端要求时弹窗、验证后自动重放，取消时静默）。
+
+目录与约定：
+
+- `src/features/admin/common/`：管理端共享件 —— `AdminFormDialog`（提交时禁止关闭、防重复提交）、`RowActions`（行内菜单）、`FilterBar` / `FilterSelect`、`useTableState`（服务端分页 + `table-page-size` 持久化）、`useAdminAction`（Toast 反馈、Step-up 取消静默）、`notify`、`fieldUtils`（表单数值 / 时间转换）。
+- 每个资源一个目录（`users/`、`groups/`、`accounts/` …），页面 + 对话框 + 纯逻辑拆分；表单字段可见性、载荷构造、状态推导等纯逻辑独立成文件并有单测（`accountFormModel`、`channelPricingModel`、`parseProxy`、`PlansPage.buildPlanPayload`、`normalizeTargeting`、提现幂等键等）。
+- **持久化键与 Vue 版一致**：`user-hidden-columns` / `user-column-settings-version`、`admin-users-table-sort`、`account-hidden-columns`、`account-filter-values`、`account-table-sort`、`account-auto-refresh`、`group-hidden-columns`、`subscription-hidden-columns`、`usage-hidden-columns`、`table-page-size`；账号 / 分组 / 渠道监控的复制沿用 API 层的幂等键前缀。
+- **账号测试 SSE**：`accounts/testStream.ts` 用 `fetch` + reader 读取（事件类型与请求头与 Vue 版一致），可通过 `AbortController` 中断，组件卸载时取消；`parseSSEChunk` 有单测。
+- **账号导入 / 导出、代理导出、用户创建 / 编辑 / 余额 / 分组 / 批量限制、账号批量操作**等敏感操作走 Step-up。
+- **语言包**：沿用 Vue 版 `admin.*` 键；新 UI 新增文案放在独立命名空间 `adminUi.*`（`locales/*/adminUi.ts`，随控制台语言包加载）。`usedKeys.spec.ts` 已扫描 `src/features/admin`。
+- **轮询**：账号列表自动刷新、渠道监控 30 秒、管理员概览 60 秒；页面不可见时暂停。
+- 订阅 / 兑换码（简易模式受限）与订单类页面（`requiresPayment`）的拦截仍由 R1 的路由门禁统一处理。
+
+### R4 与 Vue 版的功能差距（诚实清单，R5 前补齐或评审）
+
+| 资源                                                   | 已实现                                                                                                                                        | 尚未对等（后续补齐）                                                                                                                                                                       |
+| ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 用户                                                   | 列表 / 筛选 / 排序 / 列设置 / 创建编辑 / 余额 / 分组与专属倍率 / API 密钥 / 余额流水 / 平台配额 / 批量限制与禁用                              | 自定义用户属性配置与按属性筛选、分组替换、按用量排序（`admin-users-usage-sort`）、错误请求详情                                                                                             |
+| 分组                                                   | 列表 / 创建编辑（基础、计费、调度过滤、模型白名单）/ 专属倍率与 RPM / 复制 / 状态 / 删除                                                      | 复合分组路由编辑、模型白名单候选拉取、推理强度映射、利润控制、OpenAI 消息调度配置、Codex 模型目录、拖拽排序、多语言名称                                                                    |
+| 账号                                                   | 列表 / 筛选排序持久化 / 自动刷新 / API Key 与 JSON 凭据创建编辑 / Anthropic OAuth 与 Setup Token 授权 / SSE 测试 / 统计 / 导入导出 / 批量操作 | OpenAI、Gemini、Antigravity、Grok 各自的 OAuth 子流程（当前可粘贴凭据 JSON）、定时测试面板、配额重置专用单元格、OpenAI 推荐关系、IP 归属地批量查询、各平台专用表单段（模型映射、池模式等） |
+| 渠道定价                                               | 列表 / 关联分组 / 逐模型定价（编辑时区间、时间段、倍率原样保留）/ 模型映射（JSON）                                                            | 区间 / 时间段 / 倍率的可视化编辑、账号统计定价规则                                                                                                                                         |
+| 渠道监控                                               | 列表 / 启停 / 立即检测 / 历史趋势 / 复制 / 请求模板管理与应用                                                                                 | v2 设置面板、可用性排名、“使用我的密钥”选择器                                                                                                                                              |
+| 订阅、代理、兑换码、优惠码、公告、使用记录、返利、订单 | 核心 CRUD / 筛选 / 批量 / 导出 / 提现登记 / 退款（含强制与扣余额）                                                                            | 使用记录的错误请求页签与 xlsx 导出（当前为 CSV）、用户列的模式切换                                                                                                                         |
+
+**测试验收说明**：自动化覆盖为纯逻辑单测（含账号表单 × 平台 / 类型字段可见性快照）+ 语言包键守护 + 类型 / Lint / 构建产物校验 + Playwright E2E（`e2e/admin-console.e2e.ts`，契约模拟服务新增 R4 假接口）：概览零 CSP 违规、用户检索、**Step-up（弹窗 → 取消静默 → 输入 TOTP 自动重放）**、**423 合规弹窗（不可绕过，输入确认短语后恢复）**、代理批量导入解析计数。各资源完整 CRUD 的 E2E、账号测试 SSE 中断、各平台 OAuth、1 万条数据性能（切页 ≤ 500ms / 滚动 ≥ 50fps）、admin access key 受限权限、1280 / 768 布局检查依赖真实后端或种子数据，列入手工与后续验收清单。

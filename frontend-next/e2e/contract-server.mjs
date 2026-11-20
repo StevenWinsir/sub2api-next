@@ -717,9 +717,237 @@ async function handleApi(req, res, url) {
   }
   // ───────── R3：用户控制台 / 支付链路的假接口 ─────────
   if (url.pathname.startsWith('/api/v1/') && handleUserConsole(req, res, url)) return
+  if (url.pathname.startsWith('/api/v1/') && handleAdminConsole(req, res, url)) return
   if (url.pathname.startsWith('/api/v1/admin/compliance')) return ok(res, { required: false, version: 'v1' })
   if (url.pathname.startsWith('/api/v1/')) return ok(res, [])
   return json(res, 404, { code: 404, message: 'not found' })
+}
+
+// ───────── R4：管理后台核心资源的假接口（用户 CRUD / Step-up / 423 合规 / 代理）─────────
+const adminState = {
+  complianceRequired: false,
+  stepUpGranted: false,
+  nextUserId: 10,
+  users: [
+    {
+      id: 2,
+      email: 'user@example.com',
+      username: 'user',
+      role: 'user',
+      balance: 10,
+      concurrency: 5,
+      rpm_limit: 0,
+      status: 'active',
+      allowed_groups: null,
+      notes: '',
+      balance_notify_enabled: false,
+      balance_notify_threshold: null,
+      balance_notify_extra_emails: [],
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z'
+    },
+    {
+      id: 3,
+      email: 'second@example.com',
+      username: 'second',
+      role: 'user',
+      balance: 0,
+      concurrency: 5,
+      rpm_limit: 0,
+      status: 'active',
+      allowed_groups: null,
+      notes: 'vip',
+      balance_notify_enabled: false,
+      balance_notify_threshold: null,
+      balance_notify_extra_emails: [],
+      created_at: '2026-01-02T00:00:00Z',
+      updated_at: '2026-01-02T00:00:00Z'
+    }
+  ],
+  proxies: [
+    {
+      id: 1,
+      name: 'seed-proxy',
+      protocol: 'socks5',
+      host: '10.0.0.1',
+      port: 1080,
+      username: null,
+      status: 'active',
+      account_count: 0,
+      expires_at: null,
+      fallback_mode: 'none'
+    }
+  ]
+}
+const page = (items, url) => ({
+  items,
+  total: items.length,
+  page: Number(url.searchParams.get('page') || 1),
+  page_size: Number(url.searchParams.get('page_size') || 20),
+  pages: 1
+})
+
+function handleAdminConsole(req, res, url) {
+  const path = url.pathname.replace('/api/v1', '')
+  const method = req.method
+  if (path === '/admin/compliance' && method === 'GET')
+    return (
+      ok(res, {
+        required: adminState.complianceRequired,
+        version: 'v1',
+        document_path_zh: '',
+        document_path_en: '',
+        document_url_zh: '',
+        document_url_en: '',
+        ack_phrase_zh: '',
+        ack_phrase_en:
+          'I have read, understood, and agree to the Sub2API Deployment and Operation Compliance Commitment'
+      }),
+      true
+    )
+  if (path === '/admin/compliance/accept' && method === 'POST') {
+    adminState.complianceRequired = false
+    return (
+      ok(res, {
+        required: false,
+        version: 'v1',
+        document_path_zh: '',
+        document_path_en: '',
+        document_url_zh: '',
+        document_url_en: '',
+        ack_phrase_zh: '',
+        ack_phrase_en: ''
+      }),
+      true
+    )
+  }
+  if (path === '/user/totp/step-up' && method === 'POST') {
+    readBody(req).then((body) => {
+      if (body.code !== '123456') return fail(res, 400, 'TOTP_INVALID', 'invalid code')
+      adminState.stepUpGranted = true
+      ok(res, { granted: true })
+    })
+    return true
+  }
+  // 合规未确认时，所有管理接口返回 423（触发全局合规弹窗）
+  if (path.startsWith('/admin/') && adminState.complianceRequired)
+    return (
+      json(res, 423, {
+        code: 'ADMIN_COMPLIANCE_ACK_REQUIRED',
+        message: 'compliance acknowledgement required',
+        metadata: { version: 'v1' }
+      }),
+      true
+    )
+  if (path === '/admin/test/compliance-on') {
+    adminState.complianceRequired = true
+    return (ok(res, {}), true)
+  }
+  if (path === '/admin/groups/all' || path === '/admin/groups/all-including-inactive')
+    return (ok(res, []), true)
+  if (path === '/admin/users' && method === 'GET') {
+    const q = (url.searchParams.get('search') || '').toLowerCase()
+    return (
+      ok(
+        res,
+        page(
+          adminState.users.filter(
+            (u) => !q || u.email.toLowerCase().includes(q) || u.username.toLowerCase().includes(q)
+          ),
+          url
+        )
+      ),
+      true
+    )
+  }
+  if (path === '/admin/users' && method === 'POST') {
+    // 创建用户是敏感操作：本会话未通过 Step-up 时返回 STEP_UP_REQUIRED
+    if (!adminState.stepUpGranted)
+      return (json(res, 403, { code: 403, message: 'step-up required', reason: 'STEP_UP_REQUIRED' }), true)
+    readBody(req).then((body) => {
+      const user = {
+        ...adminState.users[0],
+        id: adminState.nextUserId++,
+        email: body.email,
+        username: body.username || '',
+        role: body.role || 'user',
+        balance: body.balance ?? 0,
+        concurrency: body.concurrency ?? 5,
+        notes: body.notes || ''
+      }
+      adminState.users.unshift(user)
+      ok(res, user)
+    })
+    return true
+  }
+  const userMatch = path.match(/^\/admin\/users\/(\d+)$/)
+  if (userMatch && method === 'DELETE') {
+    if (!adminState.stepUpGranted)
+      return (json(res, 403, { code: 403, message: 'step-up required', reason: 'STEP_UP_REQUIRED' }), true)
+    adminState.users = adminState.users.filter((u) => u.id !== Number(userMatch[1]))
+    return (ok(res, { message: 'deleted' }), true)
+  }
+  if (path === '/admin/proxies' && method === 'GET') return (ok(res, page(adminState.proxies, url)), true)
+  if (path === '/admin/proxies/all') return (ok(res, adminState.proxies), true)
+  if (path === '/admin/proxies/batch' && method === 'POST') {
+    readBody(req).then((body) => {
+      let created = 0
+      for (const p of body.proxies || []) {
+        adminState.proxies.push({
+          id: adminState.proxies.length + 1,
+          name: `${p.host}:${p.port}`,
+          protocol: p.protocol,
+          host: p.host,
+          port: p.port,
+          username: p.username || null,
+          status: 'active',
+          account_count: 0,
+          expires_at: null,
+          fallback_mode: 'none'
+        })
+        created++
+      }
+      ok(res, { created, skipped: 0 })
+    })
+    return true
+  }
+  const adminAnnouncement = path === '/admin/dashboard/snapshot-v2'
+  if (adminAnnouncement)
+    return (
+      ok(res, {
+        generated_at: '',
+        start_date: '',
+        end_date: '',
+        granularity: 'day',
+        stats: {
+          total_users: adminState.users.length,
+          today_new_users: 0,
+          active_users: 1,
+          total_api_keys: 1,
+          active_api_keys: 1,
+          total_accounts: 3,
+          normal_accounts: 2,
+          error_accounts: 1,
+          ratelimit_accounts: 0,
+          today_requests: 7,
+          total_requests: 70,
+          today_tokens: 1234,
+          total_tokens: 12340,
+          today_cost: 1,
+          today_actual_cost: 1,
+          today_account_cost: 1,
+          total_actual_cost: 10,
+          average_duration_ms: 321,
+          rpm: 3,
+          tpm: 400
+        },
+        trend: [],
+        models: [],
+        groups: []
+      }),
+      true
+    )
+  return false
 }
 
 function safeFile(pathname) {

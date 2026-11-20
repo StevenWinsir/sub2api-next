@@ -16,7 +16,7 @@ describe('locale scopes', () => {
       [zhCore, zhConsole]
     ] as const) {
       expect(Object.keys(scoped).filter((k) => k in core)).toEqual([])
-      expect(Object.keys(scoped).sort()).toEqual(['admin', 'adminAccessKeys'])
+      expect(Object.keys(scoped).sort()).toEqual(['admin', 'adminAccessKeys', 'adminUi'])
     }
   })
 
@@ -31,7 +31,7 @@ describe('locale scopes', () => {
     const offenders: string[] = []
     for (const [path, source] of Object.entries(files)) {
       if (/\/__tests__\/|\.(spec|test)\.tsx?$/.test(path) || !publicCode.test(path)) continue
-      if (/\bt\(\s*['"`](admin|adminAccessKeys)\./.test(source)) offenders.push(path)
+      if (/\bt\(\s*['"`](admin|adminAccessKeys|adminUi)\./.test(source)) offenders.push(path)
     }
     expect(offenders).toEqual([])
   })

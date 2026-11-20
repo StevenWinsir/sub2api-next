@@ -6,8 +6,10 @@
  */
 import adminAccessKeys from './adminAccessKeys'
 import admin from './admin'
+import adminUi from './adminUi'
 
 export default {
   adminAccessKeys,
   admin,
+  ...adminUi,
 }

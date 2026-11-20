@@ -45,6 +45,7 @@ const ROOTS = [
   'src/features/custom-page',
   'src/features/announcements',
   'src/features/onboarding',
+  'src/features/admin',
   'src/components/IpGeoCell.tsx',
   'src/components/ColumnSettings.tsx'
 ]
