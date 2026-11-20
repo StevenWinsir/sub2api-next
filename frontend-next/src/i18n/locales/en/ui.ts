@@ -53,6 +53,11 @@ export default {
         'The application kept redirecting while starting up. This usually happens right after an update with stale cached files.',
       clearCacheRetry: 'Clear cache and retry'
     },
+    error: {
+      title: 'Something went wrong',
+      description: 'An unexpected error occurred while rendering this page. You can retry, or reload the page.',
+      retry: 'Try again'
+    },
     notFound: {
       title: 'Page not found',
       description: 'The page you are looking for does not exist or has been moved.',
@@ -115,6 +120,8 @@ export default {
       search: 'Search',
       required: 'This field is required',
       pickDateRange: 'Pick a date range',
+      showPassword: 'Show password',
+      hidePassword: 'Hide password',
       status: {
         success: 'Success',
         warning: 'Warning',

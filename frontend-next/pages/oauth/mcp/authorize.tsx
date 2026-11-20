@@ -1,6 +1,5 @@
-import { PagePlaceholder } from '@/components/PagePlaceholder'
+import { McpAuthorizePage } from '@/features/auth/McpAuthorizePage'
 
-// /oauth/mcp/authorize —— 占位页，后续轮次替换为 src/features 中的真实实现
 export default function Page() {
-  return <PagePlaceholder name="MCPAuthorize" />
+  return <McpAuthorizePage />
 }

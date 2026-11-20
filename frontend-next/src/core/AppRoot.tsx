@@ -9,16 +9,16 @@
 import * as React from 'react'
 import type { AppProps } from 'next/app'
 import Router, { useRouter } from 'next/router'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from '@/components/ui/sonner'
-import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 import { BlankLayout } from '@/components/layout/BlankLayout'
-import { ConsoleLayout } from '@/components/layout/ConsoleLayout'
+import { ConsoleLayoutLazy as ConsoleLayout } from '@/components/layout/ConsoleLayoutLazy'
 import { NavProgress } from '@/components/layout/NavProgress'
 import { PublicLayout } from '@/components/layout/PublicLayout'
+import { AppErrorBoundary } from '@/components/AppErrorBoundary'
 import { NotFoundContent } from '@/components/NotFoundContent'
 import { BootErrorContent, BootSkeleton } from '@/components/BootScreens'
+import { ensureLocaleScope, scopeForLayout } from '@/i18n'
 import { useLocale } from '@/i18n/react'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -39,23 +39,6 @@ import { useSessionLifecycle } from './useSessionLifecycle'
 const BOOT_MARK = '__sub2api_boot'
 
 const pathOf = (asPath: string) => asPath.split(/[?#]/)[0] || '/'
-
-function makeQueryClient() {
-  return new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 30_000,
-        refetchOnWindowFocus: false,
-        // 4xx 不重试，网络错误和 5xx 最多重试一次（§5.5）
-        retry: (failureCount, error) => {
-          const status = (error as { status?: number })?.status
-          if (typeof status === 'number' && status >= 400 && status < 500) return false
-          return failureCount < 1
-        }
-      }
-    }
-  })
-}
 
 function LayoutSwitch({ layout, children }: { layout: LayoutKind | null; children: React.ReactNode }) {
   switch (layout) {
@@ -85,7 +68,6 @@ function safeSession(): Storage | null {
 
 export function AppRoot({ Component, pageProps }: AppProps) {
   const router = useRouter()
-  const [queryClient] = React.useState(makeQueryClient)
   const [started, setStarted] = React.useState(false)
   const [approvedPath, setApprovedPath] = React.useState<string | null>(null)
   const locale = useLocale()
@@ -160,6 +142,9 @@ export function AppRoot({ Component, pageProps }: AppProps) {
       if (result.type === 'redirect') {
         void Router.replace(result.to)
       } else {
+        // 控制台路由：先加载 console 语言包再渲染（标题 / 页面文案都依赖它）
+        await ensureLocaleScope(scopeForLayout(matchRoute(target.path)?.route.layout))
+        if (cancelled) return
         setApprovedPath(asPath)
         // 目标页面已成功落地：清除深链纠正的防循环记录
         const storage = safeSession()
@@ -210,7 +195,8 @@ export function AppRoot({ Component, pageProps }: AppProps) {
     isAdmin,
     adminCustomMenu,
     billingMode,
-    locale
+    locale,
+    approvedPath
   ])
 
   // ───────── 渲染 ─────────
@@ -236,18 +222,23 @@ export function AppRoot({ Component, pageProps }: AppProps) {
     const approved = approvedPath === asPath
     body = (
       <LayoutSwitch layout={layout}>
-        {approved && !asPath.includes(BOOT_MARK) ? <Component {...pageProps} /> : <BootSkeleton inline />}
+        {approved && !asPath.includes(BOOT_MARK) ? (
+          // display: contents：不产生盒子，仅给 E2E / 调试提供路由名标记
+          <div className="contents" data-route-name={match?.route.name}>
+            <Component {...pageProps} />
+          </div>
+        ) : (
+          <BootSkeleton inline />
+        )}
       </LayoutSwitch>
     )
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <NavProgress />
-        {body}
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <>
+      <NavProgress />
+      <AppErrorBoundary resetKey={asPath}>{body}</AppErrorBoundary>
+      <Toaster />
+    </>
   )
 }

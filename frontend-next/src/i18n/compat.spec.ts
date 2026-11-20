@@ -22,6 +22,8 @@ describe('vue-i18n compatibility layer', () => {
       getI18n()
       await loadLocaleMessages('en')
       await loadLocaleMessages('zh')
+      await loadLocaleMessages('en', 'console')
+      await loadLocaleMessages('zh', 'console')
       await setLocale('en')
     })
 

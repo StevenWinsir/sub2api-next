@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { announcementsAPI } from '@/api'
+import announcementsAPI from '@/api/announcements'
 import type { UserAnnouncement } from '@/types'
 
 const THROTTLE_MS = 20 * 60 * 1000 // 20 分钟

@@ -1,23 +1,8 @@
-import adminAccessKeys from './adminAccessKeys'
-import mcp from './mcp'
-import landing from './landing'
-import common from './common'
-import dashboard from './dashboard'
-import channelMonitorV2 from './channelMonitorV2'
-import batchImage from './batchImage'
-import admin from './admin'
-import misc from './misc'
-import ui from './ui'
+/** 完整语言包（core + console）：测试、类型与键完整性检查使用；运行时按 scope 分块加载。 */
+import core from './core'
+import consoleScope from './console'
 
 export default {
-  adminAccessKeys,
-  mcp,
-  ...landing,
-  ...common,
-  ...dashboard,
-  ...channelMonitorV2,
-  ...batchImage,
-  admin,
-  ...misc,
-  ...ui,
+  ...core,
+  ...consoleScope,
 }

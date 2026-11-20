@@ -1,6 +1,5 @@
-import { PagePlaceholder } from '@/components/PagePlaceholder'
+import { ForgotPasswordPage } from '@/features/auth/ForgotPasswordPage'
 
-// /forgot-password —— 占位页，后续轮次替换为 src/features 中的真实实现
 export default function Page() {
-  return <PagePlaceholder name="ForgotPassword" />
+  return <ForgotPasswordPage />
 }

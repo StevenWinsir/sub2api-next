@@ -52,6 +52,11 @@ export default {
       errorDescription: '应用启动时反复重定向。这通常发生在版本更新后，浏览器仍缓存着旧文件。',
       clearCacheRetry: '清除缓存并重试'
     },
+    error: {
+      title: '出错了',
+      description: '渲染此页面时发生了意外错误。你可以重试，或刷新页面。',
+      retry: '重试'
+    },
     notFound: {
       title: '页面不存在',
       description: '你访问的页面不存在，或已被移动。',
@@ -114,6 +119,8 @@ export default {
       search: '搜索',
       required: '此项为必填',
       pickDateRange: '选择日期范围',
+      showPassword: '显示密码',
+      hidePassword: '隐藏密码',
       status: {
         success: '成功',
         warning: '警告',

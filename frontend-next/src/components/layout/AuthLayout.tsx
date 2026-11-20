@@ -3,8 +3,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { useAppStore } from '@/stores/app'
 import { t } from '@/i18n'
 import { Brand } from './Brand'
-import { LocaleSwitch } from './LocaleSwitch'
-import { ThemeToggle } from './ThemeToggle'
+import { SimpleLocaleSwitch, SimpleThemeToggle } from './SimpleSwitches'
 
 /** 认证布局：左右分栏（品牌叙事 + 表单），移动端单栏。 */
 export function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -32,8 +31,8 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center justify-between p-4 sm:p-6">
           <Brand className="lg:invisible" />
           <div className="flex items-center gap-1">
-            <LocaleSwitch />
-            <ThemeToggle />
+            <SimpleLocaleSwitch />
+            <SimpleThemeToggle />
           </div>
         </div>
         <main id="main-content" className="flex flex-1 items-center justify-center px-4 pb-12 sm:px-6">

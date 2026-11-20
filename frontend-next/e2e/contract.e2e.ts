@@ -114,14 +114,14 @@ test.describe('auth + request contract', () => {
   test('login honours a safe redirect and ignores an open redirect', async ({ page }) => {
     await page.goto('/login?redirect=/keys')
     await page.getByLabel('Email').fill('user@example.com')
-    await page.getByLabel('Password').fill('user-pass')
+    await page.getByLabel(/^Password/).fill('user-pass')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForURL('**/keys')
 
     await page.evaluate(() => localStorage.clear())
     await page.goto('/login?redirect=//evil.example.com')
     await page.getByLabel('Email').fill('user@example.com')
-    await page.getByLabel('Password').fill('user-pass')
+    await page.getByLabel(/^Password/).fill('user-pass')
     await page.getByRole('button', { name: 'Sign in' }).click()
     await page.waitForURL('**/dashboard')
     expect(new URL(page.url()).origin).toBe(new URL(NORMAL).origin)
@@ -135,7 +135,7 @@ test.describe('auth + request contract', () => {
     const before = await page.evaluate(() => localStorage.getItem('auth_token'))
     await page.reload()
     await page.waitForLoadState('networkidle')
-    await expect(page.getByTestId('route-placeholder')).toBeVisible()
+    await expect(page.locator('[data-route-name="Dashboard"]').first()).toBeAttached()
     const after = await page.evaluate(() => localStorage.getItem('auth_token'))
     expect(after).not.toBe(before) // 已刷新
     const calls = await recorded(request, NORMAL)
@@ -152,7 +152,7 @@ test.describe('auth + request contract', () => {
     await page.evaluate(() => localStorage.setItem('refresh_token', 'rt-bogus'))
     await page.reload()
     await page.waitForURL('**/login**')
-    await expect(page.getByText('Your session has expired')).toBeVisible()
+    await expect(page.getByText('Session expired. Please log in again.').first()).toBeVisible()
     expect(await page.evaluate(() => localStorage.getItem('auth_token'))).toBeNull()
   })
 
@@ -197,7 +197,7 @@ test.describe('setup wizard mode (no injection, CSP forced on)', () => {
       const watcher = await watchPage(page)
       await page.goto(`${SETUP}${path}`)
       await page.waitForURL('**/setup')
-      await expect(page.getByTestId('route-placeholder')).toHaveAttribute('data-route-name', 'Setup')
+      await expect(page.getByTestId('setup-wizard')).toBeVisible()
       await expectClean(page, watcher)
     })
   }

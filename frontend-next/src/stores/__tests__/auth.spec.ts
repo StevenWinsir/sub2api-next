@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-vi.mock('@/api', () => ({
+vi.mock('@/api/auth', () => ({
   authAPI: {
     login: vi.fn(),
     login2FA: vi.fn(),
@@ -9,11 +9,11 @@ vi.mock('@/api', () => ({
     getCurrentUser: vi.fn(),
     register: vi.fn()
   },
-  passkeyAPI: { login: vi.fn() },
   isTotp2FARequired: (r: { requires_2fa?: boolean }) => r.requires_2fa === true
 }))
+vi.mock('@/api/passkey', () => ({ passkeyAPI: { login: vi.fn() } }))
 
-import { authAPI } from '@/api'
+import { authAPI } from '@/api/auth'
 import { useAuthStore } from '../auth'
 
 const user = { id: 1, email: 'a@b.c', username: 'a', role: 'user', balance: 0 }
