@@ -93,6 +93,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "check:licenses": "node scripts/check-licenses.mjs"
   }
 }

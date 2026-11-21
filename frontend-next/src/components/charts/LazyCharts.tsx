@@ -11,5 +11,9 @@ export const LazyDonutChart = dynamic(() => import('./Charts').then((m) => m.Don
   ssr: false,
   loading: fallback
 })
+export const LazySimpleBarChart = dynamic(() => import('./Charts').then((m) => m.SimpleBarChart), {
+  ssr: false,
+  loading: fallback
+})
 
 export { CHART_COLORS } from './chartColors'

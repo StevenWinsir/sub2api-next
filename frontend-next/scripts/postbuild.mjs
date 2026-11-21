@@ -5,10 +5,24 @@
  *  c. 清空 ../backend/internal/web/dist（保留 .keep）并拷贝产物。
  * 加 --no-copy 时只做 a、b（CI 校验用，不触碰后端目录）。
  */
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { verifyIndexHtml, verifyNoExtraHtml, verifyTopLevelEntries } from './lib/verifyExport.mjs'
+import {
+  verifyIndexHtml,
+  verifyNoExtraHtml,
+  verifyServiceWorker,
+  verifyTopLevelEntries
+} from './lib/verifyExport.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const outDir = join(root, 'out')
@@ -51,8 +65,17 @@ for (const file of walk(outDir)) {
 }
 removeEmptyDirs(outDir)
 
+// a2. 把构建号写入 sw.js：新版本发布后 CACHE_NAME 变化，旧缓存在激活时被清理
+const swPath = join(outDir, 'sw.js')
+if (existsSync(swPath)) {
+  const buildIdPath = join(root, '.next', 'BUILD_ID')
+  const buildId = existsSync(buildIdPath) ? readFileSync(buildIdPath, 'utf8').trim() : String(Date.now())
+  writeFileSync(swPath, readFileSync(swPath, 'utf8').replace(/__BUILD_ID__/g, buildId))
+}
+
 // b. 校验
 const errors = []
+if (existsSync(swPath)) errors.push(...verifyServiceWorker(readFileSync(swPath, 'utf8')))
 errors.push(...verifyIndexHtml(readFileSync(join(outDir, 'index.html'), 'utf8')))
 errors.push(...verifyTopLevelEntries(readdirSync(outDir)))
 errors.push(

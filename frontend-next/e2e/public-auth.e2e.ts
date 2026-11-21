@@ -377,7 +377,8 @@ test.describe('MCP authorization consent', () => {
   test('a malformed request is rejected before any network call to approve', async ({ page }) => {
     await signIn(page)
     await page.goto(`/oauth/mcp/authorize?${query.replace('S256', 'plain')}`)
-    await expect(page.getByRole('alert')).toBeVisible()
+    // Next 的路由播报器也是 role=alert，这里只断言页面自己的错误提示
+    await expect(page.getByText(/authorization request is invalid or incomplete/i)).toBeVisible()
     await expect(page.getByTestId('approve')).toHaveCount(0)
   })
 })

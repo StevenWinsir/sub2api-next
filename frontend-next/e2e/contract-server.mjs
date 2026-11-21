@@ -725,6 +725,40 @@ async function handleApi(req, res, url) {
 
 // ───────── R4：管理后台核心资源的假接口（用户 CRUD / Step-up / 423 合规 / 代理）─────────
 const adminState = {
+  settings: {
+    site_name: 'Sub2API',
+    site_subtitle: 'Gateway',
+    table_default_page_size: 20,
+    table_page_size_options: [10, 20, 50, 100],
+    registration_enabled: true,
+    subscription_enabled: true,
+    ops_monitoring_enabled: true,
+    ops_realtime_monitoring_enabled: true,
+    ops_query_mode_default: 'auto',
+    smtp_port: 587,
+    default_balance: 0,
+    default_concurrency: 1,
+    payment_load_balance_strategy: 'round-robin'
+  },
+  lastSettingsPayload: null,
+  promptAudit: {
+    enabled: false,
+    blocking_enabled: false,
+    blocking_latest_turn_only: false,
+    store_pass_events: false,
+    effective_mode: 'off',
+    strategy: 'priority',
+    worker_count: 2,
+    queue_capacity: 1000,
+    scanners: ['pii'],
+    all_groups: true,
+    group_ids: [],
+    endpoints: [],
+    config_version: 1,
+    updated_at: '',
+    updated_by: 0,
+    change_summary: ''
+  },
   complianceRequired: false,
   stepUpGranted: false,
   nextUserId: 10,
@@ -843,6 +877,265 @@ function handleAdminConsole(req, res, url) {
     adminState.complianceRequired = true
     return (ok(res, {}), true)
   }
+  // ───────── R5：系统设置 / 审计日志 / 插件 / 版本 / 运维的假接口 ─────────
+  if (path === '/admin/settings' && method === 'GET') return (ok(res, adminState.settings), true)
+  if (path === '/admin/settings' && method === 'PUT') {
+    readBody(req).then((body) => {
+      adminState.lastSettingsPayload = body
+      adminState.settings = { ...adminState.settings, ...body }
+      ok(res, adminState.settings)
+    })
+    return true
+  }
+  if (path === '/admin/test/last-settings-payload')
+    return (ok(res, adminState.lastSettingsPayload ?? null), true)
+  if (path === '/admin/settings/web-search-emulation' && method === 'GET')
+    return (ok(res, { enabled: false, providers: [] }), true)
+  if (path === '/admin/settings/admin-api-key') return (ok(res, { exists: false, masked_key: '' }), true)
+  if (path === '/admin/settings/admin-api-keys') return (ok(res, { items: [], permissions: [] }), true)
+  if (path === '/admin/settings/email-templates')
+    return (ok(res, { events: ['auth.verify_code'], locales: ['en', 'zh'], placeholders: [] }), true)
+  if (path === '/admin/settings/registration-email-blacklist')
+    return (ok(res, { emails: [], max: 100 }), true)
+  if (path === '/admin/prompt-audit/config' && method === 'GET')
+    return (ok(res, adminState.promptAudit), true)
+  if (path === '/admin/prompt-audit/config' && method === 'PUT') {
+    readBody(req).then((body) => {
+      adminState.promptAudit = {
+        ...adminState.promptAudit,
+        ...body,
+        config_version: adminState.promptAudit.config_version + 1,
+        endpoints: (body.endpoints || []).map((e) => ({
+          ...e,
+          has_token: !!e.token,
+          token_status: e.token ? 'configured' : 'missing'
+        }))
+      }
+      ok(res, adminState.promptAudit)
+    })
+    return true
+  }
+  if (path === '/admin/prompt-audit/runtime')
+    return (
+      ok(res, {
+        process_status: 'disabled',
+        effective_mode: 'off',
+        expected_config_version: 1,
+        active_config_version: 1,
+        worker_total: 2,
+        worker_active: 0,
+        queue_capacity: 1000,
+        queue: { staging: 0, queued: 0, processing: 0, retry: 0, done: 0, failed: 0, active: 0 },
+        processed_total: 0,
+        failed_total: 0,
+        enqueued_total: 0,
+        dropped_total: 0,
+        database_status: 'ok',
+        redis_status: 'ok',
+        endpoints: {},
+        guard_metrics: {
+          total: 0,
+          allowed: 0,
+          flagged: 0,
+          blocked: 0,
+          unavailable: 0,
+          invalid: 0,
+          timeouts: 0,
+          failovers: 0,
+          bulkhead_full: 0,
+          record_failed: 0
+        }
+      }),
+      true
+    )
+  if (path === '/admin/prompt-audit/events')
+    return (ok(res, { items: [], total: 0, page: 1, page_size: 20, pages: 0 }), true)
+  if (path === '/admin/risk-control/config')
+    return (
+      ok(res, {
+        enabled: false,
+        mode: 'pre_block',
+        base_url: 'https://api.openai.com',
+        model: 'omni-moderation-latest',
+        proxy_id: null,
+        api_key_configured: false,
+        api_key_masked: '',
+        api_key_count: 0,
+        api_key_masks: [],
+        api_key_statuses: [],
+        timeout_ms: 3000,
+        sample_rate: 100,
+        all_groups: true,
+        group_ids: [],
+        record_non_hits: false,
+        thresholds: {},
+        worker_count: 4,
+        queue_size: 32768,
+        block_status: 403,
+        block_message: '',
+        email_on_hit: true,
+        auto_ban_enabled: true,
+        ban_threshold: 10,
+        violation_window_hours: 720,
+        retry_count: 2,
+        hit_retention_days: 180,
+        non_hit_retention_days: 3,
+        pre_hash_check_enabled: false,
+        blocked_keywords: [],
+        keyword_blocking_mode: 'keyword_and_api',
+        model_filter: { type: 'all', models: [] },
+        cyber_policy_exclude_from_ban_count: false
+      }),
+      true
+    )
+  if (path === '/admin/risk-control/status')
+    return (
+      ok(res, {
+        enabled: false,
+        risk_control_enabled: true,
+        mode: 'pre_block',
+        worker_count: 4,
+        max_workers: 8,
+        active_workers: 0,
+        idle_workers: 4,
+        queue_size: 100,
+        queue_length: 0,
+        queue_usage_percent: 0,
+        enqueued: 0,
+        dropped: 0,
+        processed: 0,
+        errors: 0,
+        pre_block_active: 0,
+        pre_block_checked: 0,
+        pre_block_allowed: 0,
+        pre_block_blocked: 0,
+        pre_block_errors: 0,
+        pre_block_avg_latency_ms: 0,
+        pre_block_api_key_active: 0,
+        pre_block_api_key_available_count: 0,
+        pre_block_api_key_total_calls: 0,
+        pre_block_api_key_loads: [],
+        api_key_statuses: [],
+        flagged_hash_count: 0,
+        last_cleanup_deleted_hit: 0,
+        last_cleanup_deleted_non_hit: 0
+      }),
+      true
+    )
+  if (path === '/admin/risk-control/logs')
+    return (ok(res, { items: [], total: 0, page: 1, page_size: 20, pages: 0 }), true)
+  if (path === '/admin/audit-logs' && method === 'GET') {
+    const items = Array.from({ length: 3 }, (_, i) => ({
+      id: i + 1,
+      created_at: new Date(Date.now() - i * 60000).toISOString(),
+      actor_email: 'admin@example.com',
+      actor_role: 'admin',
+      auth_method: 'jwt',
+      credential_masked: '',
+      action: `settings.update.${i}`,
+      method: 'PUT',
+      path: '/api/v1/admin/settings',
+      request_id: `req-${i}`,
+      client_ip: '127.0.0.1',
+      user_agent: 'e2e',
+      status_code: i === 2 ? 500 : 200,
+      latency_ms: 12 + i
+    }))
+    return (ok(res, { items, total: items.length, page: 1, page_size: 20, pages: 1 }), true)
+  }
+  if (/^\/admin\/audit-logs\/\d+$/.test(path))
+    return (
+      ok(res, {
+        id: 1,
+        created_at: new Date().toISOString(),
+        actor_email: 'admin@example.com',
+        actor_role: 'admin',
+        auth_method: 'jwt',
+        credential_masked: '',
+        action: 'settings.update.0',
+        method: 'PUT',
+        path: '/api/v1/admin/settings',
+        request_id: 'req-0',
+        client_ip: '127.0.0.1',
+        user_agent: 'e2e',
+        request_body: '{"site_name":"x"}',
+        status_code: 200,
+        latency_ms: 12
+      }),
+      true
+    )
+  if (path === '/admin/plugins' && method === 'GET')
+    return (
+      ok(res, [
+        {
+          id: 1,
+          plugin_key: 'demo.transport',
+          name: 'Demo Transport',
+          version: '1.0.0',
+          description: 'demo',
+          author: 'qa',
+          manifest: {},
+          binary_sha256: 'x',
+          signature_status: 'trusted',
+          state: 'disabled',
+          last_error: '',
+          installed_at: '',
+          updated_at: '',
+          bindings: [],
+          compatibility: {
+            compatible: true,
+            tested: true,
+            status: 'compatible',
+            message: 'ok',
+            current_sub2api_version: '1.0.0',
+            required_sub2api_version: '>=1.0.0',
+            recommended_sub2api_version: '1.0.0',
+            plugin_protocol: 1,
+            transport_api: 1,
+            ui_bridge: 1
+          },
+          runtime_healthy: false,
+          runtime_message: ''
+        }
+      ]),
+      true
+    )
+  if (path === '/admin/system/check-updates')
+    return (
+      ok(res, {
+        current_version: '0.2.23',
+        latest_version: '0.2.24',
+        has_update: true,
+        cached: false,
+        build_type: 'release',
+        release_info: { name: 'v0.2.24', body: 'notes', published_at: '', html_url: 'https://example.com/r' }
+      }),
+      true
+    )
+  if (path === '/admin/ops/advanced-settings')
+    return (
+      ok(res, {
+        data_retention: {
+          cleanup_enabled: false,
+          cleanup_schedule: '',
+          error_log_retention_days: 30,
+          minute_metrics_retention_days: 7,
+          hourly_metrics_retention_days: 30
+        },
+        aggregation: { aggregation_enabled: false },
+        openai_account_quota_auto_pause: { default_threshold_5h: 0, default_threshold_7d: 0 },
+        ignore_count_tokens_errors: false,
+        ignore_context_canceled: false,
+        ignore_no_available_accounts: false,
+        ignore_invalid_api_key_errors: false,
+        ignore_insufficient_balance_errors: false,
+        display_openai_token_stats: false,
+        display_alert_events: false,
+        auto_refresh_enabled: false,
+        auto_refresh_interval_seconds: 30
+      }),
+      true
+    )
   if (path === '/admin/groups/all' || path === '/admin/groups/all-including-inactive')
     return (ok(res, []), true)
   if (path === '/admin/users' && method === 'GET') {

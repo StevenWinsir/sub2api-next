@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { t } from '@/i18n'
 import { Brand } from './Brand'
 import { DynamicIcon } from './icons'
+import { VersionBadge } from './VersionBadge'
 
 function isActive(asPath: string, path: string, exact = false): boolean {
   const current = asPath.split(/[?#]/)[0]
@@ -213,6 +214,14 @@ export function Sidebar({ section, forceExpanded, onNavigate }: SidebarProps) {
             )}
           </div>
         ))}
+      </div>
+      <div
+        className={cn(
+          'shrink-0 border-t border-sidebar-border px-2 py-2',
+          collapsed && 'flex justify-center'
+        )}
+      >
+        <VersionBadge collapsed={collapsed} />
       </div>
       {!forceExpanded ? (
         <div className="hidden shrink-0 border-t border-sidebar-border p-2 lg:block">

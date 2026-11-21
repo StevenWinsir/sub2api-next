@@ -91,3 +91,13 @@ export function verifyNoExtraHtml(relativeHtmlFiles) {
     .filter((file) => file !== 'index.html')
     .map((file) => `产物含多余 HTML 文件 "${file}"（会触发 Go FileServer 301 重定向）`)
 }
+
+/** Service Worker 产物校验：构建号已写入、没有 eval / importScripts（后端 CSP 不允许）。 */
+export function verifyServiceWorker(source) {
+  const errors = []
+  if (source.includes('__BUILD_ID__')) errors.push('sw.js 仍含占位符 __BUILD_ID__（postbuild 未写入构建号）')
+  if (/\beval\s*\(|new Function\s*\(|importScripts\s*\(/.test(source))
+    errors.push('sw.js 含 eval / new Function / importScripts')
+  if (!source.includes("'/_next/static/'")) errors.push('sw.js 缺少 /_next/static/ 作用域限定')
+  return errors
+}

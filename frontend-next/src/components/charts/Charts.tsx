@@ -3,6 +3,8 @@ import * as React from 'react'
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
   Cell,
   Legend,
@@ -118,6 +120,50 @@ export function DonutChart({
           formatter={(v) => (valueFormatter ? valueFormatter(Number(v)) : String(v))}
         />
       </PieChart>
+    </ResponsiveContainer>
+  )
+}
+
+/** 简单柱状图（延迟直方图 / 状态码分布）。 */
+export function SimpleBarChart({
+  data,
+  xKey = 'name',
+  yKey = 'value',
+  height = 220,
+  color = 'var(--chart-1)',
+  valueFormatter
+}: {
+  data: Record<string, unknown>[]
+  xKey?: string
+  yKey?: string
+  height?: number
+  color?: string
+  valueFormatter?: (v: number) => string
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+        <XAxis
+          dataKey={xKey}
+          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          tickLine={false}
+          axisLine={false}
+          minTickGap={12}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+          tickLine={false}
+          axisLine={false}
+          width={40}
+          allowDecimals={false}
+        />
+        <Tooltip
+          contentStyle={tooltipStyle}
+          formatter={(v) => (valueFormatter ? valueFormatter(Number(v)) : String(v))}
+        />
+        <Bar dataKey={yKey} fill={color} radius={[4, 4, 0, 0]} />
+      </BarChart>
     </ResponsiveContainer>
   )
 }

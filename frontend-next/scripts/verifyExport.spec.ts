@@ -3,6 +3,7 @@ import {
   findInlineExecutableScripts,
   verifyIndexHtml,
   verifyNoExtraHtml,
+  verifyServiceWorker,
   verifyTopLevelEntries
 } from './lib/verifyExport.mjs'
 
@@ -33,5 +34,18 @@ describe('verifyTopLevelEntries / verifyNoExtraHtml', () => {
   })
   it('flags extra html files', () => {
     expect(verifyNoExtraHtml(['index.html', 'admin/users.html'])).toHaveLength(1)
+  })
+})
+
+describe('verifyServiceWorker', () => {
+  const ok = "var VERSION = 'abc123'\nvar STATIC_PREFIX = '/_next/static/'"
+  it('accepts a stamped, scoped worker', () => {
+    expect(verifyServiceWorker(ok)).toEqual([])
+  })
+  it('rejects an unstamped worker, eval / importScripts, and a missing scope', () => {
+    expect(verifyServiceWorker("var VERSION = '__BUILD_ID__'\n'/_next/static/'")[0]).toMatch(/BUILD_ID/)
+    expect(verifyServiceWorker(ok + '\neval(1)')[0]).toMatch(/eval/)
+    expect(verifyServiceWorker(ok + "\nimportScripts('x')")[0]).toMatch(/importScripts/)
+    expect(verifyServiceWorker("var VERSION='x'")[0]).toMatch(/_next\/static/)
   })
 })

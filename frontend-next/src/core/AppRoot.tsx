@@ -27,6 +27,7 @@ import { resolveSiteBillingMode } from '@/utils/siteBillingMode'
 import { updateFavicon } from '@/utils/branding'
 import { clearCorrectionRecord, decideBoot, isBootLoop, recordCorrection } from './bootCorrection'
 import { installGlobalEventBridge } from './events'
+import { initServiceWorker } from './serviceWorker'
 import { evaluateRouteGate } from './gate'
 import { defaultGateDeps } from './gateDeps'
 import { matchRoute, type LayoutKind } from './routes'
@@ -92,6 +93,11 @@ export function AppRoot({ Component, pageProps }: AppProps) {
       cancelled = true
       uninstall()
     }
+  }, [])
+
+  // 1b) 静态资源缓存 Service Worker（window load 之后注册；有紧急注销开关，见 serviceWorker.ts）
+  React.useEffect(() => {
+    initServiceWorker()
   }, [])
 
   // 2) 深链纠正：replace 到完整原始 URL（必须保留 search 和 hash）。
