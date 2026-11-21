@@ -1,0 +1,133 @@
+name: Frontend CI
+
+# 仅在 frontend/、法律文档或本工作流变化时运行。backend-ci 的 frontend 任务继续跑 lint / typecheck / 关键单测，
+# 本工作流补齐全量单测、产物契约校验、E2E 与原 Dockerfile 的构建演练。
+on:
+  push:
+    paths:
+      - 'frontend/**'
+      - 'docs/legal/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'docs/legal/**'
+      - '.github/workflows/frontend-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Lint · Typecheck · Unit tests · Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm run lint:check
+      - name: Format check
+        run: pnpm run format:check
+      - name: Locale completeness (zh / en)
+        run: pnpm run check:i18n
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Dependency licences (permissive only)
+        run: pnpm run check:licenses
+      - name: Unit tests (ported contract specs + gate / registry / stores)
+        run: pnpm run test:run
+      - name: Build (static export) and verify artifact contract
+        run: pnpm run build:verify
+      - name: Upload exported site
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out
+          retention-days: 7
+
+  e2e:
+    name: E2E (CSP + SPA fallback + injection contract)
+    needs: verify
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v6
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 9
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Download exported site
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-out
+          path: frontend/out
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run E2E against the contract server
+        run: pnpm run e2e
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+
+  dockerfile-rehearsal:
+    name: Original Dockerfile build (musl · lockfile · docs/legal)
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build frontend stage with the ORIGINAL Dockerfile (alpine / musl)
+        run: docker build --target frontend-builder -t sub2api-frontend-rehearsal -f Dockerfile .
+      - name: Verify the artifact written for the Go embed
+        run: |
+          id=$(docker create sub2api-frontend-rehearsal)
+          docker cp "$id:/app/backend/internal/web/dist" ./rehearsal-dist
+          docker rm "$id"
+          test -f rehearsal-dist/index.html
+          grep -q '</head>' rehearsal-dist/index.html
+          grep -q '<link rel="icon"' rehearsal-dist/index.html
+          ! grep -E '<script>[^<]' rehearsal-dist/index.html
+          # Service Worker 必须随产物发布且已写入构建号
+          test -f rehearsal-dist/sw.js
+          ! grep -q '__BUILD_ID__' rehearsal-dist/sw.js
+          ls rehearsal-dist | head -20
+      - name: Build the full image with the ORIGINAL Dockerfile
+        run: |
+          docker build -f Dockerfile \
+            --build-arg GOPROXY=https://proxy.golang.org,direct \
+            --build-arg GOSUMDB=sum.golang.org \
+            -t sub2api-next-rehearsal .

@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { computed } from 'vue'
 import { CONCRETE_PLATFORM_OPTIONS, GROUP_PLATFORM_OPTIONS } from '@/constants/platforms'
 import {
   BUILTIN_PLATFORM_CATALOG,
@@ -36,10 +35,7 @@ describe('platform option catalogs', () => {
   })
 
   it('adds composite for group-backed filters', () => {
-    expect(GROUP_PLATFORM_OPTIONS.map((option) => option.value)).toEqual([
-      ...concretePlatforms,
-      'composite'
-    ])
+    expect(GROUP_PLATFORM_OPTIONS.map((option) => option.value)).toEqual([...concretePlatforms, 'composite'])
   })
 })
 
@@ -59,12 +55,34 @@ describe('platform catalog with a newly registered platform', () => {
   it('keeps the built-in catalog equal to the legacy literals', () => {
     expect(listPlatformIds()).toEqual(concretePlatforms)
     expect(compositePrecedencePlatformIds()).toEqual([
-      'anthropic', 'gemini', 'openai', 'antigravity', 'grok',
-      'kimi', 'zhipu', 'deepseek', 'minimax', 'opencode_go', 'typesafe', 'command_code', 'cline'
+      'anthropic',
+      'gemini',
+      'openai',
+      'antigravity',
+      'grok',
+      'kimi',
+      'zhipu',
+      'deepseek',
+      'minimax',
+      'opencode_go',
+      'typesafe',
+      'command_code',
+      'cline'
     ])
     expect(CONCRETE_PLATFORM_OPTIONS.map((option) => option.label)).toEqual([
-      'Anthropic', 'OpenAI', 'Gemini', 'Antigravity', 'Grok',
-      'Kimi', 'Zhipu GLM', 'DeepSeek', 'MiniMax', 'OpenCode', 'TypeSafe / Jev', 'Command Code', 'Cline'
+      'Anthropic',
+      'OpenAI',
+      'Gemini',
+      'Antigravity',
+      'Grok',
+      'Kimi',
+      'Zhipu GLM',
+      'DeepSeek',
+      'MiniMax',
+      'OpenCode',
+      'TypeSafe / Jev',
+      'Command Code',
+      'Cline'
     ])
     expect(platformLabel('zhipu')).toBe('Zhipu GLM')
     expect(platformLabel('composite')).toBe('Composite')
@@ -72,7 +90,11 @@ describe('platform catalog with a newly registered platform', () => {
   })
 
   it('adds newly registered platforms to options, labels and quota lists reactively', () => {
-    const optionValues = computed(() => CONCRETE_PLATFORM_OPTIONS.map((option) => option.value))
+    const optionValues = {
+      get value() {
+        return CONCRETE_PLATFORM_OPTIONS.map((option) => option.value)
+      }
+    }
     expect(optionValues.value).not.toContain('acme_router')
 
     setPlatformCatalog(withNewProvider)
@@ -88,7 +110,9 @@ describe('platform catalog with a newly registered platform', () => {
     expect(platformLabel('unregistered')).toBe('unregistered')
     expect(platformQuotaPlatforms()).toContain('acme_router')
     expect(Object.keys(normalizePlatformQuotasMap())).toEqual([...concretePlatforms, 'acme_router'])
-    expect(sanitizePlatformQuotasMap({ acme_router: { daily: 5, weekly: -1, monthly: null } }).acme_router).toEqual({
+    expect(
+      sanitizePlatformQuotasMap({ acme_router: { daily: 5, weekly: -1, monthly: null } }).acme_router
+    ).toEqual({
       daily: 5,
       weekly: null,
       monthly: null

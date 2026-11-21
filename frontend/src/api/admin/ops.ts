@@ -602,7 +602,7 @@ export function subscribeQPS(onMessage: (data: any) => void, options: SubscribeQ
 
     isConnecting = true
     setStatus(hasConnectedOnce ? 'reconnecting' : 'connecting')
-    const wsBaseUrl = options.wsBaseUrl || import.meta.env.VITE_WS_BASE_URL
+    const wsBaseUrl = options.wsBaseUrl || process.env.NEXT_PUBLIC_WS_BASE_URL
     const wsURL = wsBaseUrl
       ? new URL(`${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${wsBaseUrl}/api/v1/admin/ops/ws/qps`)
       : new URL(buildGatewayUrl('/api/v1/admin/ops/ws/qps').replace(/^http/, 'ws'))

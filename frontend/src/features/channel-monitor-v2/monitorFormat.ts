@@ -21,7 +21,7 @@ export function monitorIntlLocale(): string {
 export function formatMonitorNumber(value: number, compactAt = 10000, locale = monitorIntlLocale()): string {
   return Intl.NumberFormat(locale, {
     notation: value >= compactAt ? 'compact' : 'standard',
-    maximumFractionDigits: 1,
+    maximumFractionDigits: 1
   }).format(value || 0)
 }
 
@@ -55,11 +55,10 @@ export function formatMonitorTokensPerSecond(tpm: number | null | undefined): st
   return formatMonitorThroughput(tokensPerSecondFromTpm(tpm))
 }
 
-
 export function formatMonitorPercent(value: number, locale = monitorIntlLocale()): string {
   return `${new Intl.NumberFormat(locale, {
     minimumFractionDigits: value < 0.01 ? 2 : 1,
-    maximumFractionDigits: value < 0.01 ? 2 : 1,
+    maximumFractionDigits: value < 0.01 ? 2 : 1
   }).format((value || 0) * 100)}%`
 }
 
@@ -92,10 +91,7 @@ export function scoreToBand(score: number | null | undefined): HealthScoreBand {
 export type HealthDisplayMode = 'overall' | 'success' | 'ttft' | 'cache'
 
 /** Resolve the score used for a health mode. */
-export function healthModeScore(
-  health: MonitorHealth,
-  mode: HealthDisplayMode,
-): number | null {
+export function healthModeScore(health: MonitorHealth, mode: HealthDisplayMode): number | null {
   if (mode === 'success') {
     return health.error_rate_score ?? null
   }
@@ -111,7 +107,7 @@ export function healthModeScore(
 export function healthScoreClass(
   health: MonitorHealth,
   mode: HealthDisplayMode,
-  requestCount: number,
+  requestCount: number
 ): string {
   const score = healthModeScore(health, mode)
   // Sync-only traffic has no first-token samples. Never paint TTFT as red/empty-fail.
@@ -119,12 +115,7 @@ export function healthScoreClass(
   if (score == null) {
     if (requestCount <= 0) return 'health-unknown'
     // Fall back to coarse state when score is absent (older payloads).
-    const coarse =
-      mode === 'success'
-        ? health.error_rate
-        : mode === 'cache'
-          ? health.cache
-          : health.overall
+    const coarse = mode === 'success' ? health.error_rate : mode === 'cache' ? health.cache : health.overall
     return healthStateClass(coarse)
   }
   return `health-${scoreToBand(score)}`
@@ -138,7 +129,7 @@ export function isTtftUnavailable(ttft?: { p50_ms?: number | null; sample_count?
 
 export function ttftDisplayState(
   state: HealthState | undefined,
-  ttft?: { p50_ms?: number | null; sample_count?: number } | null,
+  ttft?: { p50_ms?: number | null; sample_count?: number } | null
 ): HealthState | undefined {
   if (isTtftUnavailable(ttft)) return 'unknown'
   return state
@@ -153,7 +144,7 @@ export function formatLatencyPrivacy(
   p50: number | null | undefined,
   p90: number | null | undefined,
   avg?: number | null | undefined,
-  p95?: number | null | undefined,
+  p95?: number | null | undefined
 ): string {
   const parts: string[] = []
   if (avg != null) parts.push(`AVG ${formatMonitorMs(avg)}`)
@@ -172,7 +163,7 @@ export function formatLatencyPrivacy(
 export function formatLatencyKpiSecondary(
   avg?: number | null | undefined,
   p90?: number | null | undefined,
-  p95?: number | null | undefined,
+  p95?: number | null | undefined
 ): string {
   const parts: string[] = []
   if (avg != null && Number.isFinite(avg)) parts.push(`AVG ${formatMonitorMs(avg)}`)

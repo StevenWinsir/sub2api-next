@@ -8,7 +8,7 @@
 |------|------|
 | **上游仓库** | Wei-Shaw/sub2api |
 | **Fork 仓库** | bayma888/sub2api-bmai |
-| **技术栈** | Go 后端 (Ent ORM + Gin) + Vue3 前端 (pnpm) |
+| **技术栈** | Go 后端 (Ent ORM + Gin) + Next.js 前端 (pnpm，静态导出) |
 | **数据库** | PostgreSQL 16 + Redis |
 | **包管理** | 后端: go modules, 前端: **pnpm**（不是 npm） |
 
@@ -285,7 +285,7 @@ git rebase upstream/main
 cd frontend
 pnpm install
 
-# 开发服务器
+# 开发服务器（3000 端口，/api /v1 /setup /health 代理到 DEV_PROXY_TARGET）
 pnpm dev
 
 # 构建
@@ -328,8 +328,8 @@ sub2api-bmai/
 ├── frontend/
 │   ├── src/
 │   │   ├── api/             # API 调用
-│   │   ├── components/      # Vue 组件
-│   │   ├── views/           # 页面视图
+│   │   ├── components/      # 通用组件（ui/ 为设计系统层）
+│   │   ├── features/        # 按领域组织的页面实现（pages/ 为薄封装）
 │   │   ├── types/           # TypeScript 类型
 │   │   └── i18n/            # 国际化
 │   ├── package.json         # 依赖配置
@@ -342,5 +342,5 @@ sub2api-bmai/
 
 - [上游仓库](https://github.com/Wei-Shaw/sub2api)
 - [Ent 文档](https://entgo.io/docs/getting-started)
-- [Vue3 文档](https://vuejs.org/)
+- [Next.js 文档](https://nextjs.org/docs/pages)
 - [pnpm 文档](https://pnpm.io/)

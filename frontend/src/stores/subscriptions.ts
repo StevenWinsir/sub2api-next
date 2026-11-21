@@ -1,68 +1,53 @@
-/**
- * Subscription Store
- * Global state management for user subscriptions with caching and deduplication
- */
-
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { create } from 'zustand'
 import subscriptionsAPI from '@/api/subscriptions'
 import type { UserSubscription } from '@/types'
 
-// Cache TTL: 60 seconds
 const CACHE_TTL_MS = 60_000
+const POLL_INTERVAL_MS = 5 * 60 * 1000
 
-// Request generation counter to invalidate stale in-flight responses
+interface SubscriptionStore {
+  activeSubscriptions: UserSubscription[]
+  loading: boolean
+  loaded: boolean
+  lastFetchedAt: number | null
+  hasActiveSubscriptions: boolean
+  fetchActiveSubscriptions: (force?: boolean) => Promise<UserSubscription[]>
+  startPolling: () => void
+  stopPolling: () => void
+  clear: () => void
+  invalidateCache: () => void
+}
+
 let requestGeneration = 0
+let activePromise: Promise<UserSubscription[]> | null = null
+let pollerInterval: ReturnType<typeof setInterval> | null = null
 
-export const useSubscriptionStore = defineStore('subscriptions', () => {
-  // State
-  const activeSubscriptions = ref<UserSubscription[]>([])
-  const loading = ref(false)
-  const loaded = ref(false)
-  const lastFetchedAt = ref<number | null>(null)
+export const useSubscriptionStore = create<SubscriptionStore>((set, get) => ({
+  activeSubscriptions: [],
+  loading: false,
+  loaded: false,
+  lastFetchedAt: null,
+  hasActiveSubscriptions: false,
 
-  // In-flight request deduplication
-  let activePromise: Promise<UserSubscription[]> | null = null
-
-  // Auto-refresh interval
-  let pollerInterval: ReturnType<typeof setInterval> | null = null
-
-  // Computed
-  const hasActiveSubscriptions = computed(() => activeSubscriptions.value.length > 0)
-
-  /**
-   * Fetch active subscriptions with caching and deduplication
-   * @param force - Force refresh even if cache is valid
-   */
-  async function fetchActiveSubscriptions(force = false): Promise<UserSubscription[]> {
-    const now = Date.now()
-
-    // Return cached data if valid
-    if (
-      !force &&
-      loaded.value &&
-      lastFetchedAt.value &&
-      now - lastFetchedAt.value < CACHE_TTL_MS
-    ) {
-      return activeSubscriptions.value
+  fetchActiveSubscriptions(force = false) {
+    const { loaded, lastFetchedAt } = get()
+    if (!force && loaded && lastFetchedAt && Date.now() - lastFetchedAt < CACHE_TTL_MS) {
+      return Promise.resolve(get().activeSubscriptions)
     }
+    if (activePromise && !force) return activePromise
 
-    // Return in-flight request if exists (deduplication)
-    if (activePromise && !force) {
-      return activePromise
-    }
-
-    const currentGeneration = ++requestGeneration
-
-    // Start new request
-    loading.value = true
-    const requestPromise = subscriptionsAPI
+    const generation = ++requestGeneration
+    set({ loading: true })
+    const request: Promise<UserSubscription[]> = subscriptionsAPI
       .getActiveSubscriptions()
       .then((data) => {
-        if (currentGeneration === requestGeneration) {
-          activeSubscriptions.value = data
-          loaded.value = true
-          lastFetchedAt.value = Date.now()
+        if (generation === requestGeneration) {
+          set({
+            activeSubscriptions: data,
+            hasActiveSubscriptions: data.length > 0,
+            loaded: true,
+            lastFetchedAt: Date.now()
+          })
         }
         return data
       })
@@ -71,71 +56,43 @@ export const useSubscriptionStore = defineStore('subscriptions', () => {
         throw error
       })
       .finally(() => {
-        if (activePromise === requestPromise) {
-          loading.value = false
+        if (activePromise === request) {
           activePromise = null
+          set({ loading: false })
         }
       })
+    activePromise = request
+    return request
+  },
 
-    activePromise = requestPromise
-
-    return activePromise
-  }
-
-  /**
-   * Start auto-refresh polling 
-   */
-  function startPolling() {
+  startPolling() {
     if (pollerInterval) return
-
     pollerInterval = setInterval(() => {
-      fetchActiveSubscriptions(true).catch((error) => {
-        console.error('Subscription polling failed:', error)
-      })
-    }, 5 * 60 * 1000)
-  }
+      get()
+        .fetchActiveSubscriptions(true)
+        .catch((error) => console.error('Subscription polling failed:', error))
+    }, POLL_INTERVAL_MS)
+  },
 
-  /**
-   * Stop auto-refresh polling
-   */
-  function stopPolling() {
+  stopPolling() {
     if (pollerInterval) {
       clearInterval(pollerInterval)
       pollerInterval = null
     }
-  }
+  },
 
-  /**
-   * Clear all subscription data and stop polling
-   */
-  function clear() {
+  clear() {
     requestGeneration++
     activePromise = null
-    loading.value = false
-    activeSubscriptions.value = []
-    loaded.value = false
-    lastFetchedAt.value = null
-    stopPolling()
-  }
+    get().stopPolling()
+    set({
+      loading: false,
+      activeSubscriptions: [],
+      hasActiveSubscriptions: false,
+      loaded: false,
+      lastFetchedAt: null
+    })
+  },
 
-  /**
-   * Invalidate cache (force next fetch to reload)
-   */
-  function invalidateCache() {
-    lastFetchedAt.value = null
-  }
-
-  return {
-    // State
-    activeSubscriptions,
-    loading,
-    hasActiveSubscriptions,
-
-    // Actions
-    fetchActiveSubscriptions,
-    startPolling,
-    stopPolling,
-    clear,
-    invalidateCache
-  }
-})
+  invalidateCache: () => set({ lastFetchedAt: null })
+}))

@@ -45,7 +45,7 @@ function collectStaticSourceKeys(source: string): string[] {
 }
 
 function sourceKeys(): string[] {
-  const sourceFiles = import.meta.glob('../../**/*.{ts,vue}', {
+  const sourceFiles = import.meta.glob('../../**/*.{ts,tsx}', {
     query: '?raw',
     import: 'default',
     eager: true

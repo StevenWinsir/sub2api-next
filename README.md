@@ -5,7 +5,7 @@
 # Sub2API
 
 [![Go](https://img.shields.io/badge/Go-1.27.0-00ADD8.svg)](https://golang.org/)
-[![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000.svg)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
@@ -222,7 +222,7 @@ Community projects that extend or integrate with Sub2API:
 | Component | Technology |
 |-----------|------------|
 | Backend | Go 1.27.0, Gin, Ent |
-| Frontend | Vue 3.4+, Vite 5+, TailwindCSS |
+| Frontend | Next.js 16 (Pages Router, static export), React 19, Tailwind CSS 4, shadcn/ui |
 | Database | PostgreSQL 15+ |
 | Cache/Queue | Redis 7+ |
 
@@ -925,7 +925,7 @@ sub2api/
 │   │   └── gateway/          # API gateway core
 │   └── resources/            # Static resources
 │
-├── frontend/                 # Vue 3 frontend
+├── frontend/                 # Next.js frontend (static export, embedded into the binary)
 │   └── src/
 │       ├── api/              # API calls
 │       ├── stores/           # State management

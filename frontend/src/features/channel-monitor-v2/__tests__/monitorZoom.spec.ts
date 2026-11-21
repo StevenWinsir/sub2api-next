@@ -6,7 +6,7 @@ import {
   clampZoom,
   isZoomed,
   resetZoom,
-  sliceByZoom,
+  sliceByZoom
 } from '../monitorZoom'
 
 describe('monitorZoom', () => {

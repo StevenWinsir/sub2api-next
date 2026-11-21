@@ -33,7 +33,7 @@ export function clampZoom(state: ZoomState): ZoomState {
   const maxOffset = Math.max(0, 1 - span)
   return {
     span,
-    offset: clamp(state.offset, 0, maxOffset),
+    offset: clamp(state.offset, 0, maxOffset)
   }
 }
 
@@ -44,7 +44,7 @@ export function clampZoom(state: ZoomState): ZoomState {
 export function applyWheelZoom(
   state: ZoomState,
   event: Pick<WheelEvent, 'deltaY' | 'deltaX' | 'shiftKey'>,
-  xRatio: number,
+  xRatio: number
 ): ZoomState {
   const ratio = clamp(Number.isFinite(xRatio) ? xRatio : 0.5, 0, 1)
   const isPan = event.shiftKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)
@@ -56,7 +56,7 @@ export function applyWheelZoom(
     const panFraction = (delta / 400) * state.span
     return clampZoom({
       span: state.span,
-      offset: state.offset + panFraction,
+      offset: state.offset + panFraction
     })
   }
 
@@ -75,7 +75,7 @@ export function applyWheelZoom(
 
   return clampZoom({
     span: nextSpan,
-    offset: nextStart,
+    offset: nextStart
   })
 }
 

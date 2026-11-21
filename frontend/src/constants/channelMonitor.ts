@@ -47,22 +47,15 @@ export const PROVIDERS: readonly Provider[] = [
   PROVIDER_ZHIPU,
   PROVIDER_DEEPSEEK,
   PROVIDER_MINIMAX,
-  PROVIDER_OPENCODE_GO,
+  PROVIDER_OPENCODE_GO
 ]
 
 /** 仅支持配额模式（无探活 adapter）的 provider。 */
 export const QUOTA_ONLY_PROVIDERS: readonly Provider[] = [PROVIDER_ANTIGRAVITY]
 
-export const CHECK_MODES: readonly CheckMode[] = [
-  CHECK_MODE_PROBE,
-  CHECK_MODE_QUOTA,
-  CHECK_MODE_QUOTA_PROBE,
-]
+export const CHECK_MODES: readonly CheckMode[] = [CHECK_MODE_PROBE, CHECK_MODE_QUOTA, CHECK_MODE_QUOTA_PROBE]
 
-export const API_MODES: readonly APIMode[] = [
-  API_MODE_CHAT_COMPLETIONS,
-  API_MODE_RESPONSES,
-]
+export const API_MODES: readonly APIMode[] = [API_MODE_CHAT_COMPLETIONS, API_MODE_RESPONSES]
 
 export const STATUS_OPERATIONAL: MonitorStatus = 'operational'
 export const STATUS_DEGRADED: MonitorStatus = 'degraded'
@@ -73,7 +66,7 @@ export const MONITOR_STATUSES: readonly MonitorStatus[] = [
   STATUS_OPERATIONAL,
   STATUS_DEGRADED,
   STATUS_FAILED,
-  STATUS_ERROR,
+  STATUS_ERROR
 ]
 
 /** Default polling interval (seconds) for new monitors. */

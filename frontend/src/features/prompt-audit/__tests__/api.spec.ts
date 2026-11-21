@@ -22,10 +22,23 @@ describe('Prompt Audit API', () => {
   it('sends a temporary probe token only in the request and never invents response credentials', async () => {
     client.post.mockResolvedValue({ data: { ok: true, token_applied: true } })
     const result = await promptAuditAPI.probeEndpoint({
-      id: 'guard-1', name: 'Guard', protocol: 'openai_compatible', base_url: 'http://127.0.0.1:8000', model: 'guard',
-      token: 'api-canary-secret', clear_token: false, timeout_ms: 1000, input_limit: 1000, enabled: true, has_token: false, token_status: 'missing',
+      id: 'guard-1',
+      name: 'Guard',
+      protocol: 'openai_compatible',
+      base_url: 'http://127.0.0.1:8000',
+      model: 'guard',
+      token: 'api-canary-secret',
+      clear_token: false,
+      timeout_ms: 1000,
+      input_limit: 1000,
+      enabled: true,
+      has_token: false,
+      token_status: 'missing'
     })
-    expect(client.post).toHaveBeenCalledWith('/admin/prompt-audit/endpoints/probe', expect.objectContaining({ endpoint: expect.objectContaining({ token: 'api-canary-secret' }) }))
+    expect(client.post).toHaveBeenCalledWith(
+      '/admin/prompt-audit/endpoints/probe',
+      expect.objectContaining({ endpoint: expect.objectContaining({ token: 'api-canary-secret' }) })
+    )
     expect(JSON.stringify(result)).not.toContain('api-canary-secret')
   })
 
@@ -35,10 +48,21 @@ describe('Prompt Audit API', () => {
     filters.start_at = '2026-07-15T00:00'
     filters.end_at = '2026-07-16T00:00'
     await promptAuditAPI.deleteEventsByFilter(filters, {
-      matched_count: 2, filter_summary: {}, snapshot_max_id: 10, filter_hash: 'a'.repeat(64), confirmation_token: 'opaque-token', expires_at: '2026-07-16T00:05:00Z',
+      matched_count: 2,
+      filter_summary: {},
+      snapshot_max_id: 10,
+      filter_hash: 'a'.repeat(64),
+      confirmation_token: 'opaque-token',
+      expires_at: '2026-07-16T00:05:00Z'
     })
-    expect(client.post).toHaveBeenCalledWith('/admin/prompt-audit/events/delete-by-filter', expect.objectContaining({
-      snapshot_max_id: 10, filter_hash: 'a'.repeat(64), confirmation_token: 'opaque-token', confirm: true,
-    }))
+    expect(client.post).toHaveBeenCalledWith(
+      '/admin/prompt-audit/events/delete-by-filter',
+      expect.objectContaining({
+        snapshot_max_id: 10,
+        filter_hash: 'a'.repeat(64),
+        confirmation_token: 'opaque-token',
+        confirm: true
+      })
+    )
   })
 })

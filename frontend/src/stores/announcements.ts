@@ -1,150 +1,148 @@
-import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
-import { announcementsAPI } from '@/api'
+import { create } from 'zustand'
+import announcementsAPI from '@/api/announcements'
 import type { UserAnnouncement } from '@/types'
 
-const THROTTLE_MS = 20 * 60 * 1000 // 20 minutes
+const THROTTLE_MS = 20 * 60 * 1000 // 20 分钟
 
-export const useAnnouncementStore = defineStore('announcements', () => {
-  // State
-  const announcements = ref<UserAnnouncement[]>([])
-  const loading = ref(false)
-  const lastFetchTime = ref(0)
-  const popupQueue = ref<UserAnnouncement[]>([])
-  const currentPopup = ref<UserAnnouncement | null>(null)
+interface AnnouncementState {
+  announcements: UserAnnouncement[]
+  loading: boolean
+  lastFetchTime: number
+  popupQueue: UserAnnouncement[]
+  currentPopup: UserAnnouncement | null
+  unreadCount: number
+}
 
-  // Session-scoped dedup set — not reactive, used as plain lookup only
-  let shownPopupIds = new Set<number>()
-  let fetchGeneration = 0
+interface AnnouncementActions {
+  fetchAnnouncements: (force?: boolean) => Promise<void>
+  dismissPopup: () => Promise<void>
+  markAsRead: (id: number) => Promise<boolean>
+  markAllAsRead: () => Promise<void>
+  reset: () => void
+}
 
-  // Getters
-  const unreadCount = computed(() =>
-    announcements.value.filter((a) => !a.read_at).length
-  )
+export type AnnouncementStore = AnnouncementState & AnnouncementActions
 
-  // Actions
-  async function fetchAnnouncements(force = false) {
-    const now = Date.now()
-    if (!force && lastFetchTime.value > 0 && now - lastFetchTime.value < THROTTLE_MS) {
+let shownPopupIds = new Set<number>()
+let fetchGeneration = 0
+
+const countUnread = (list: UserAnnouncement[]) => list.filter((a) => !a.read_at).length
+
+export const useAnnouncementStore = create<AnnouncementStore>((set, get) => {
+  function showNextPopup(): void {
+    const queue = [...get().popupQueue]
+    if (queue.length === 0) {
+      set({ currentPopup: null })
       return
     }
-
-    // Set immediately to prevent concurrent duplicate requests
-    lastFetchTime.value = now
-    const generation = ++fetchGeneration
-
-    try {
-      loading.value = true
-      const all = await announcementsAPI.list(false)
-      if (generation !== fetchGeneration) return
-      announcements.value = all.slice(0, 20)
-      enqueueNewPopups()
-    } catch (err: any) {
-      if (generation !== fetchGeneration) return
-      // Revert throttle timestamp on failure so retry is allowed
-      lastFetchTime.value = 0
-      console.error('Failed to fetch announcements:', err)
-    } finally {
-      if (generation === fetchGeneration) loading.value = false
-    }
+    const next = queue.shift()!
+    shownPopupIds.add(next.id)
+    set({ popupQueue: queue, currentPopup: next })
   }
 
-  function enqueueNewPopups() {
-    const newPopups = announcements.value.filter(
+  function enqueueNewPopups(): void {
+    const fresh = get().announcements.filter(
       (a) => a.notify_mode === 'popup' && !a.read_at && !shownPopupIds.has(a.id)
     )
-    if (newPopups.length === 0) return
-
-    for (const p of newPopups) {
-      if (!popupQueue.value.some((q) => q.id === p.id)) {
-        popupQueue.value.push(p)
-      }
+    if (fresh.length === 0) return
+    const queue = [...get().popupQueue]
+    for (const p of fresh) {
+      if (!queue.some((q) => q.id === p.id)) queue.push(p)
     }
-
-    if (!currentPopup.value) {
-      showNextPopup()
-    }
+    set({ popupQueue: queue })
+    if (!get().currentPopup) showNextPopup()
   }
 
-  function showNextPopup() {
-    if (popupQueue.value.length === 0) {
-      currentPopup.value = null
-      return
-    }
-    currentPopup.value = popupQueue.value.shift()!
-    shownPopupIds.add(currentPopup.value.id)
-  }
-
-  async function dismissPopup() {
-    if (!currentPopup.value) return
-    const id = currentPopup.value.id
-    currentPopup.value = null
-
-    // Mark as read (fire-and-forget, UI already updated)
-    markAsRead(id)
-
-    // Show next popup after a short delay
-    if (popupQueue.value.length > 0) {
-      setTimeout(() => showNextPopup(), 300)
-    }
-  }
-
-  async function markAsRead(id: number) {
-    try {
-      await announcementsAPI.markRead(id)
-      const ann = announcements.value.find((a) => a.id === id)
-      if (ann) {
-        ann.read_at = new Date().toISOString()
-      }
-      return true
-    } catch (err: any) {
-      console.error('Failed to mark announcement as read:', err)
-      return false
-    }
-  }
-
-  async function markAllAsRead() {
-    const unread = announcements.value.filter((a) => !a.read_at)
-    if (unread.length === 0) return
-
-    try {
-      loading.value = true
-      const results = await Promise.allSettled(unread.map(async (a) => {
-        await announcementsAPI.markRead(a.id)
-        a.read_at = new Date().toISOString()
-      }))
-      const failure = results.find((result) => result.status === 'rejected')
-      if (failure) throw failure.reason
-    } catch (err: any) {
-      console.error('Failed to mark all as read:', err)
-      throw err
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function reset() {
-    fetchGeneration++
-    announcements.value = []
-    lastFetchTime.value = 0
-    shownPopupIds = new Set()
-    popupQueue.value = []
-    currentPopup.value = null
-    loading.value = false
+  function patchRead(id: number): void {
+    const readAt = new Date().toISOString()
+    const announcements = get().announcements.map((a) => (a.id === id ? { ...a, read_at: readAt } : a))
+    set({ announcements, unreadCount: countUnread(announcements) })
   }
 
   return {
-    // State
-    announcements,
-    loading,
-    currentPopup,
-    // Getters
-    unreadCount,
-    // Actions
-    fetchAnnouncements,
-    dismissPopup,
-    markAsRead,
-    markAllAsRead,
-    reset,
+    announcements: [],
+    loading: false,
+    lastFetchTime: 0,
+    popupQueue: [],
+    currentPopup: null,
+    unreadCount: 0,
+
+    async fetchAnnouncements(force = false) {
+      const now = Date.now()
+      const { lastFetchTime } = get()
+      if (!force && lastFetchTime > 0 && now - lastFetchTime < THROTTLE_MS) return
+
+      set({ lastFetchTime: now })
+      const generation = ++fetchGeneration
+      try {
+        set({ loading: true })
+        const all = await announcementsAPI.list(false)
+        if (generation !== fetchGeneration) return
+        const announcements = all.slice(0, 20)
+        set({ announcements, unreadCount: countUnread(announcements) })
+        enqueueNewPopups()
+      } catch (err) {
+        if (generation !== fetchGeneration) return
+        set({ lastFetchTime: 0 })
+        console.error('Failed to fetch announcements:', err)
+      } finally {
+        if (generation === fetchGeneration) set({ loading: false })
+      }
+    },
+
+    async dismissPopup() {
+      const current = get().currentPopup
+      if (!current) return
+      set({ currentPopup: null })
+      void get().markAsRead(current.id)
+      if (get().popupQueue.length > 0) {
+        setTimeout(() => showNextPopup(), 300)
+      }
+    },
+
+    async markAsRead(id) {
+      try {
+        await announcementsAPI.markRead(id)
+        patchRead(id)
+        return true
+      } catch (err) {
+        console.error('Failed to mark announcement as read:', err)
+        return false
+      }
+    },
+
+    async markAllAsRead() {
+      const unread = get().announcements.filter((a) => !a.read_at)
+      if (unread.length === 0) return
+      try {
+        set({ loading: true })
+        const results = await Promise.allSettled(
+          unread.map(async (a) => {
+            await announcementsAPI.markRead(a.id)
+            patchRead(a.id)
+          })
+        )
+        const failure = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined
+        if (failure) throw failure.reason
+      } catch (err) {
+        console.error('Failed to mark all as read:', err)
+        throw err
+      } finally {
+        set({ loading: false })
+      }
+    },
+
+    reset() {
+      fetchGeneration++
+      shownPopupIds = new Set()
+      set({
+        announcements: [],
+        lastFetchTime: 0,
+        popupQueue: [],
+        currentPopup: null,
+        loading: false,
+        unreadCount: 0
+      })
+    }
   }
 })

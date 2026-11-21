@@ -1,149 +1,100 @@
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
-import { adminAPI } from '@/api'
+import { create } from 'zustand'
+// 管理端 API 体量很大（35 个模块）：只在管理员会话真正拉取设置时才动态加载，避免进入公共页的首屏包
 import type { CustomMenuItem } from '@/types'
+import { STORAGE_KEYS } from '@/constants/storage'
+import { readCachedBool, readCachedString, writeCachedBool, writeStorage } from './storage'
 
-export const useAdminSettingsStore = defineStore('adminSettings', () => {
-  const loaded = ref(false)
-  const loading = ref(false)
+interface AdminSettingsState {
+  loaded: boolean
+  loading: boolean
+  opsMonitoringEnabled: boolean
+  opsRealtimeMonitoringEnabled: boolean
+  opsQueryModeDefault: string
+  paymentEnabled: boolean
+  customMenuItems: CustomMenuItem[]
+}
 
-  const readCachedBool = (key: string, defaultValue: boolean): boolean => {
+interface AdminSettingsActions {
+  fetch: (force?: boolean) => Promise<void>
+  setOpsMonitoringEnabledLocal: (value: boolean) => void
+  setOpsRealtimeMonitoringEnabledLocal: (value: boolean) => void
+  setPaymentEnabledLocal: (value: boolean) => void
+  setOpsQueryModeDefaultLocal: (value: string) => void
+}
+
+export type AdminSettingsStore = AdminSettingsState & AdminSettingsActions
+
+/**
+ * 注意：缓存值在客户端首次读取。为保证与构建期预渲染的水合一致，
+ * 初始状态使用默认值，真实缓存由 hydrateAdminSettingsCache() 在客户端 effect 中应用。
+ */
+export const useAdminSettingsStore = create<AdminSettingsStore>((set, get) => ({
+  loaded: false,
+  loading: false,
+  opsMonitoringEnabled: true,
+  opsRealtimeMonitoringEnabled: true,
+  opsQueryModeDefault: 'auto',
+  paymentEnabled: false,
+  customMenuItems: [],
+
+  async fetch(force = false) {
+    if (get().loaded && !force) return
+    if (get().loading) return
+    set({ loading: true })
     try {
-      const raw = localStorage.getItem(key)
-      if (raw === 'true') return true
-      if (raw === 'false') return false
-    } catch {
-      // ignore localStorage failures
-    }
-    return defaultValue
-  }
-
-  const writeCachedBool = (key: string, value: boolean) => {
-    try {
-      localStorage.setItem(key, value ? 'true' : 'false')
-    } catch {
-      // ignore localStorage failures
-    }
-  }
-
-  const readCachedString = (key: string, defaultValue: string): string => {
-    try {
-      const raw = localStorage.getItem(key)
-      if (typeof raw === 'string' && raw.length > 0) return raw
-    } catch {
-      // ignore localStorage failures
-    }
-    return defaultValue
-  }
-
-  const writeCachedString = (key: string, value: string) => {
-    try {
-      localStorage.setItem(key, value)
-    } catch {
-      // ignore localStorage failures
-    }
-  }
-
-  // Default open, but honor cached value to reduce UI flicker on first paint.
-  const opsMonitoringEnabled = ref(readCachedBool('ops_monitoring_enabled_cached', true))
-  const opsRealtimeMonitoringEnabled = ref(readCachedBool('ops_realtime_monitoring_enabled_cached', true))
-  const opsQueryModeDefault = ref(readCachedString('ops_query_mode_default_cached', 'auto'))
-  const paymentEnabled = ref(readCachedBool('payment_enabled_cached', false))
-  const customMenuItems = ref<CustomMenuItem[]>([])
-
-  async function fetch(force = false): Promise<void> {
-    if (loaded.value && !force) return
-    if (loading.value) return
-
-    loading.value = true
-    try {
+      const { adminAPI } = await import('@/api/admin')
       const [settings, paymentConfigResp] = await Promise.all([
         adminAPI.settings.getSettings(),
         adminAPI.payment.getConfig()
       ])
-      opsMonitoringEnabled.value = settings.ops_monitoring_enabled ?? true
-      writeCachedBool('ops_monitoring_enabled_cached', opsMonitoringEnabled.value)
-
-      opsRealtimeMonitoringEnabled.value = settings.ops_realtime_monitoring_enabled ?? true
-      writeCachedBool('ops_realtime_monitoring_enabled_cached', opsRealtimeMonitoringEnabled.value)
-
-      opsQueryModeDefault.value = settings.ops_query_mode_default || 'auto'
-      writeCachedString('ops_query_mode_default_cached', opsQueryModeDefault.value)
-
-      customMenuItems.value = Array.isArray(settings.custom_menu_items) ? settings.custom_menu_items : []
-
-      paymentEnabled.value = paymentConfigResp.data?.enabled ?? false
-      writeCachedBool('payment_enabled_cached', paymentEnabled.value)
-
-      loaded.value = true
+      const opsMonitoringEnabled = settings.ops_monitoring_enabled ?? true
+      writeCachedBool(STORAGE_KEYS.opsMonitoringEnabledCached, opsMonitoringEnabled)
+      const opsRealtimeMonitoringEnabled = settings.ops_realtime_monitoring_enabled ?? true
+      writeCachedBool(STORAGE_KEYS.opsRealtimeMonitoringEnabledCached, opsRealtimeMonitoringEnabled)
+      const opsQueryModeDefault = settings.ops_query_mode_default || 'auto'
+      writeStorage(STORAGE_KEYS.opsQueryModeDefaultCached, opsQueryModeDefault)
+      const paymentEnabled = paymentConfigResp.data?.enabled ?? false
+      writeCachedBool(STORAGE_KEYS.paymentEnabledCached, paymentEnabled)
+      set({
+        opsMonitoringEnabled,
+        opsRealtimeMonitoringEnabled,
+        opsQueryModeDefault,
+        paymentEnabled,
+        customMenuItems: Array.isArray(settings.custom_menu_items) ? settings.custom_menu_items : [],
+        loaded: true
+      })
     } catch (err) {
-      // Keep cached/default value: do not "flip" the UI based on a transient fetch failure.
       console.error('[adminSettings] Failed to fetch settings:', err)
     } finally {
-      loading.value = false
+      set({ loading: false })
     }
+  },
+
+  setOpsMonitoringEnabledLocal(value) {
+    writeCachedBool(STORAGE_KEYS.opsMonitoringEnabledCached, value)
+    set({ opsMonitoringEnabled: value, loaded: true })
+  },
+  setOpsRealtimeMonitoringEnabledLocal(value) {
+    writeCachedBool(STORAGE_KEYS.opsRealtimeMonitoringEnabledCached, value)
+    set({ opsRealtimeMonitoringEnabled: value, loaded: true })
+  },
+  setPaymentEnabledLocal(value) {
+    writeCachedBool(STORAGE_KEYS.paymentEnabledCached, value)
+    set({ paymentEnabled: value, loaded: true })
+  },
+  setOpsQueryModeDefaultLocal(value) {
+    const next = value || 'auto'
+    writeStorage(STORAGE_KEYS.opsQueryModeDefaultCached, next)
+    set({ opsQueryModeDefault: next, loaded: true })
   }
+}))
 
-  function setOpsMonitoringEnabledLocal(value: boolean) {
-    opsMonitoringEnabled.value = value
-    writeCachedBool('ops_monitoring_enabled_cached', value)
-    loaded.value = true
-  }
-
-  function setOpsRealtimeMonitoringEnabledLocal(value: boolean) {
-    opsRealtimeMonitoringEnabled.value = value
-    writeCachedBool('ops_realtime_monitoring_enabled_cached', value)
-    loaded.value = true
-  }
-
-  function setPaymentEnabledLocal(value: boolean) {
-    paymentEnabled.value = value
-    writeCachedBool('payment_enabled_cached', value)
-    loaded.value = true
-  }
-
-  function setOpsQueryModeDefaultLocal(value: string) {
-    opsQueryModeDefault.value = value || 'auto'
-    writeCachedString('ops_query_mode_default_cached', opsQueryModeDefault.value)
-    loaded.value = true
-  }
-
-  // Keep UI consistent if we learn that ops is disabled via feature-gated 404s.
-  // (event is dispatched from the axios interceptor)
-  let eventHandlerCleanup: (() => void) | null = null
-
-  function initializeEventListeners() {
-    if (eventHandlerCleanup) return
-
-    try {
-      const handler = () => {
-        setOpsMonitoringEnabledLocal(false)
-      }
-      window.addEventListener('ops-monitoring-disabled', handler)
-      eventHandlerCleanup = () => {
-        window.removeEventListener('ops-monitoring-disabled', handler)
-      }
-    } catch {
-      // ignore window access failures (SSR)
-    }
-  }
-
-  if (typeof window !== 'undefined') {
-    initializeEventListeners()
-  }
-
-  return {
-    loaded,
-    loading,
-    opsMonitoringEnabled,
-    opsRealtimeMonitoringEnabled,
-    opsQueryModeDefault,
-    paymentEnabled,
-    customMenuItems,
-    fetch,
-    setOpsMonitoringEnabledLocal,
-    setOpsRealtimeMonitoringEnabledLocal,
-    setPaymentEnabledLocal,
-    setOpsQueryModeDefaultLocal
-  }
-})
+/** 客户端启动时应用 localStorage 中的缓存值（对应 Pinia 版在 store 创建时同步读取）。 */
+export function hydrateAdminSettingsCache(): void {
+  useAdminSettingsStore.setState({
+    opsMonitoringEnabled: readCachedBool(STORAGE_KEYS.opsMonitoringEnabledCached, true),
+    opsRealtimeMonitoringEnabled: readCachedBool(STORAGE_KEYS.opsRealtimeMonitoringEnabledCached, true),
+    opsQueryModeDefault: readCachedString(STORAGE_KEYS.opsQueryModeDefaultCached, 'auto'),
+    paymentEnabled: readCachedBool(STORAGE_KEYS.paymentEnabledCached, false)
+  })
+}
