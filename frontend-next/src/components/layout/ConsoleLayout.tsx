@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
 import { Breadcrumbs } from './Breadcrumbs'
 import { AnnouncementHost } from '@/features/announcements/AnnouncementPopup'
+import { AdminComplianceDialog } from '@/features/admin/common/AdminComplianceDialog'
 import { OnboardingHost } from '@/features/onboarding/OnboardingHost'
 import { QueryProvider } from '@/core/QueryProvider'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -52,6 +53,7 @@ export function ConsoleLayout({ section, children }: ConsoleLayoutProps) {
         </div>
         <AnnouncementHost />
         <OnboardingHost />
+        <AdminComplianceDialog />
       </TooltipProvider>
     </QueryProvider>
   )
