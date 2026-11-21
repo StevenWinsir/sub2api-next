@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 describe('user api oauth binding urls', () => {
   beforeEach(() => {
     vi.resetModules()
-    vi.stubEnv('VITE_API_BASE_URL', 'https://api.example.com/api/v1')
+    vi.stubEnv('NEXT_PUBLIC_API_BASE_URL', 'https://api.example.com/api/v1')
   })
 
   afterEach(() => {

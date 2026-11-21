@@ -1,4 +1,3 @@
-import { shallowRef } from 'vue'
 import builtinCatalog from './platformCatalog.builtin.json'
 
 /**
@@ -55,16 +54,29 @@ export interface PlatformCatalog {
 
 export const BUILTIN_PLATFORM_CATALOG: PlatformCatalog = builtinCatalog as PlatformCatalog
 
-const catalogState = shallowRef<PlatformCatalog>(BUILTIN_PLATFORM_CATALOG)
+const catalogState: { value: PlatformCatalog } = { value: BUILTIN_PLATFORM_CATALOG }
+const catalogListeners = new Set<() => void>()
+
+/** 订阅清单变更（替代 Vue 响应式；返回取消订阅函数）。 */
+export function subscribePlatformCatalog(listener: () => void): () => void {
+  catalogListeners.add(listener)
+  return () => catalogListeners.delete(listener)
+}
+
+function notifyCatalogChanged(): void {
+  catalogListeners.forEach((listener) => listener())
+}
 
 /** 替换当前清单（测试用于模拟新登记的平台）。 */
 export function setPlatformCatalog(catalog: PlatformCatalog): void {
   catalogState.value = catalog
+  notifyCatalogChanged()
 }
 
 /** 恢复内置清单（测试用）。 */
 export function resetPlatformCatalog(): void {
   catalogState.value = BUILTIN_PLATFORM_CATALOG
+  notifyCatalogChanged()
 }
 
 /** 全部具体平台，按展示顺序。 */
@@ -73,12 +85,12 @@ export function listPlatforms(): PlatformSpec[] {
 }
 
 export function listPlatformIds(): string[] {
-  return listPlatforms().map(spec => spec.id)
+  return listPlatforms().map((spec) => spec.id)
 }
 
 export function getPlatformSpec(platform: string | null | undefined): PlatformSpec | undefined {
   if (!platform) return undefined
-  return catalogState.value.platforms.find(spec => spec.id === platform)
+  return catalogState.value.platforms.find((spec) => spec.id === platform)
 }
 
 export function isKnownPlatform(platform: string | null | undefined): boolean {
@@ -115,13 +127,16 @@ export function getProviderProfile(platform: string | null | undefined): Provide
 }
 
 /** 指定接入模式的端点；未知模式回落默认模式（与后端 ProviderProfile.Endpoints 一致）。 */
-export function getProviderMode(platform: string | null | undefined, mode: string | null | undefined): ProviderModeInfo | undefined {
+export function getProviderMode(
+  platform: string | null | undefined,
+  mode: string | null | undefined
+): ProviderModeInfo | undefined {
   const profile = getProviderProfile(platform)
   if (!profile) return undefined
   const trimmed = (mode ?? '').trim()
   return (
-    profile.modes.find(item => item.mode === trimmed) ??
-    profile.modes.find(item => item.mode === profile.default_mode) ??
+    profile.modes.find((item) => item.mode === trimmed) ??
+    profile.modes.find((item) => item.mode === profile.default_mode) ??
     profile.modes[0]
   )
 }

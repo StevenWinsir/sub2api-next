@@ -5,7 +5,7 @@
 # Sub2API
 
 [![Go](https://img.shields.io/badge/Go-1.27.0-00ADD8.svg)](https://golang.org/)
-[![Vue](https://img.shields.io/badge/Vue-3.4+-4FC08D.svg)](https://vuejs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000.svg)](https://nextjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-336791.svg)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7+-DC382D.svg)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg)](https://www.docker.com/)
@@ -218,7 +218,7 @@ Sub2API を拡張・統合するコミュニティプロジェクト:
 | コンポーネント | 技術 |
 |-----------|------------|
 | バックエンド | Go 1.27.0, Gin, Ent |
-| フロントエンド | Vue 3.4+, Vite 5+, TailwindCSS |
+| フロントエンド | Next.js 16（Pages Router 静的エクスポート）, React 19, Tailwind CSS 4, shadcn/ui |
 | データベース | PostgreSQL 15+ |
 | キャッシュ/キュー | Redis 7+ |
 
@@ -722,7 +722,7 @@ sub2api/
 │   │   └── gateway/          # API ゲートウェイコア
 │   └── resources/            # 静的リソース
 │
-├── frontend/                 # Vue 3 フロントエンド
+├── frontend/                 # Next.js フロントエンド（静的エクスポート、バイナリに埋め込み）
 │   └── src/
 │       ├── api/              # API 呼び出し
 │       ├── stores/           # 状態管理

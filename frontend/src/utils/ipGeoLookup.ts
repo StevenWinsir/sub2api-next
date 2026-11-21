@@ -1,4 +1,3 @@
-import { reactive } from 'vue'
 
 export type IpGeoStatus = 'idle' | 'loading' | 'success' | 'error' | 'private'
 
@@ -33,7 +32,38 @@ interface StoredEntry {
   fetchedAt: number
 }
 
-const cache = reactive(new Map<string, IpGeoEntry>())
+const rawCache = new Map<string, IpGeoEntry>()
+const geoListeners = new Set<() => void>()
+let geoVersion = 0
+
+function notifyGeo(): void {
+  geoVersion += 1
+  geoListeners.forEach((listener) => listener())
+}
+
+/** 订阅缓存变更（供 useSyncExternalStore 使用）。 */
+export function subscribeIpGeo(listener: () => void): () => void {
+  geoListeners.add(listener)
+  return () => geoListeners.delete(listener)
+}
+
+export function getIpGeoVersion(): number {
+  return geoVersion
+}
+
+const cache = {
+  get: (ip: string) => rawCache.get(ip),
+  set: (ip: string, entry: IpGeoEntry) => {
+    rawCache.set(ip, entry)
+    notifyGeo()
+  },
+  delete: (ip: string) => {
+    const removed = rawCache.delete(ip)
+    if (removed) notifyGeo()
+    return removed
+  },
+  entries: () => rawCache.entries()
+}
 
 function isFreshSuccess(entry: IpGeoEntry | undefined): entry is IpGeoEntry & { status: 'success'; fetchedAt: number } {
   return entry?.status === 'success' && typeof entry.fetchedAt === 'number' && Date.now() - entry.fetchedAt <= CACHE_TTL_MS

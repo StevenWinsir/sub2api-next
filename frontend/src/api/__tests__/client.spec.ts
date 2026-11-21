@@ -30,7 +30,7 @@ describe('API Client', () => {
   describe('请求拦截器', () => {
     it('规范化相对 API base，避免在回调页拼出相对 v1 路径', async () => {
       vi.resetModules()
-      vi.stubEnv('VITE_API_BASE_URL', 'api/v1')
+      vi.stubEnv('NEXT_PUBLIC_API_BASE_URL', 'api/v1')
 
       const mod = await import('@/api/client')
 

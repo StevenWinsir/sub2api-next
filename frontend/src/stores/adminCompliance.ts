@@ -1,97 +1,116 @@
-import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { create } from 'zustand'
 import adminComplianceAPI, { type AdminComplianceStatus } from '@/api/admin/compliance'
 import { getLocale } from '@/i18n'
 
 const FALLBACK_ZH_PHRASE = '我已阅读、理解并同意 Sub2API 部署与运营合规承诺'
-const FALLBACK_EN_PHRASE = 'I have read, understood, and agree to the Sub2API Deployment and Operation Compliance Commitment'
+const FALLBACK_EN_PHRASE =
+  'I have read, understood, and agree to the Sub2API Deployment and Operation Compliance Commitment'
 
-export const useAdminComplianceStore = defineStore('adminCompliance', () => {
-  const status = ref<AdminComplianceStatus | null>(null)
-  const loading = ref(false)
-  const submitting = ref(false)
-  const initialized = ref(false)
-  const forceVisible = ref(false)
-  let stateVersion = 0
+interface AdminComplianceState {
+  status: AdminComplianceStatus | null
+  loading: boolean
+  submitting: boolean
+  initialized: boolean
+  forceVisible: boolean
+  required: boolean
+  shouldShow: boolean
+}
 
-  const required = computed(() => status.value?.required === true)
-  const shouldShow = computed(() => required.value || forceVisible.value)
-  const currentLocale = computed(() => getLocale())
-  const expectedPhrase = computed(() => {
-    if (currentLocale.value === 'zh') {
-      return status.value?.ack_phrase_zh || FALLBACK_ZH_PHRASE
-    }
-    return status.value?.ack_phrase_en || FALLBACK_EN_PHRASE
-  })
+interface AdminComplianceActions {
+  /** 期望的确认短语（随当前语言变化，调用时计算）。 */
+  getExpectedPhrase: () => string
+  fetchStatus: () => Promise<AdminComplianceStatus>
+  accept: (phrase: string) => Promise<AdminComplianceStatus>
+  requireAcknowledgement: (partial?: Partial<AdminComplianceStatus>) => void
+  reset: () => void
+}
 
-  async function fetchStatus(): Promise<AdminComplianceStatus> {
+export type AdminComplianceStore = AdminComplianceState & AdminComplianceActions
+
+// 版本号用于丢弃 reset 之前发出的请求结果
+let stateVersion = 0
+
+const derive = (status: AdminComplianceStatus | null, forceVisible: boolean) => {
+  const required = status?.required === true
+  return { required, shouldShow: required || forceVisible }
+}
+
+export const useAdminComplianceStore = create<AdminComplianceStore>((set, get) => ({
+  status: null,
+  loading: false,
+  submitting: false,
+  initialized: false,
+  forceVisible: false,
+  required: false,
+  shouldShow: false,
+
+  getExpectedPhrase() {
+    const status = get().status
+    return getLocale() === 'zh'
+      ? status?.ack_phrase_zh || FALLBACK_ZH_PHRASE
+      : status?.ack_phrase_en || FALLBACK_EN_PHRASE
+  },
+
+  async fetchStatus() {
     const version = stateVersion
-    loading.value = true
+    set({ loading: true })
     try {
-      const nextStatus = await adminComplianceAPI.getStatus()
-      if (version !== stateVersion) return nextStatus
-      status.value = nextStatus
-      initialized.value = true
-      forceVisible.value = nextStatus.required
-      return nextStatus
+      const next = await adminComplianceAPI.getStatus()
+      if (version !== stateVersion) return next
+      set({ status: next, initialized: true, forceVisible: next.required, ...derive(next, next.required) })
+      return next
     } finally {
-      if (version === stateVersion) loading.value = false
+      if (version === stateVersion) set({ loading: false })
     }
-  }
+  },
 
-  async function accept(phrase: string): Promise<AdminComplianceStatus> {
+  async accept(phrase) {
     const version = stateVersion
-    submitting.value = true
+    set({ submitting: true })
     try {
-      const nextStatus = await adminComplianceAPI.accept({
-        phrase,
-        language: currentLocale.value
-      })
-      if (version !== stateVersion) return nextStatus
-      status.value = nextStatus
-      forceVisible.value = nextStatus.required
-      return nextStatus
+      const next = await adminComplianceAPI.accept({ phrase, language: getLocale() })
+      if (version !== stateVersion) return next
+      set({ status: next, forceVisible: next.required, ...derive(next, next.required) })
+      return next
     } finally {
-      if (version === stateVersion) submitting.value = false
+      if (version === stateVersion) set({ submitting: false })
     }
-  }
+  },
 
-  function requireAcknowledgement(partialStatus?: Partial<AdminComplianceStatus>): void {
-    status.value = {
+  requireAcknowledgement(partial) {
+    const prev = get().status
+    const status: AdminComplianceStatus = {
       required: true,
-      version: partialStatus?.version || status.value?.version || 'v2026.06.10',
-      document_path_zh: partialStatus?.document_path_zh || status.value?.document_path_zh || 'docs/legal/admin-compliance.zh.md',
-      document_path_en: partialStatus?.document_path_en || status.value?.document_path_en || 'docs/legal/admin-compliance.en.md',
-      document_url_zh: partialStatus?.document_url_zh || status.value?.document_url_zh || 'https://github.com/Wei-Shaw/sub2api/blob/main/docs/legal/admin-compliance.zh.md',
-      document_url_en: partialStatus?.document_url_en || status.value?.document_url_en || 'https://github.com/Wei-Shaw/sub2api/blob/main/docs/legal/admin-compliance.en.md',
-      ack_phrase_zh: partialStatus?.ack_phrase_zh || status.value?.ack_phrase_zh || FALLBACK_ZH_PHRASE,
-      ack_phrase_en: partialStatus?.ack_phrase_en || status.value?.ack_phrase_en || FALLBACK_EN_PHRASE,
-      acknowledgement: status.value?.acknowledgement
+      version: partial?.version || prev?.version || 'v2026.06.10',
+      document_path_zh:
+        partial?.document_path_zh || prev?.document_path_zh || 'docs/legal/admin-compliance.zh.md',
+      document_path_en:
+        partial?.document_path_en || prev?.document_path_en || 'docs/legal/admin-compliance.en.md',
+      document_url_zh:
+        partial?.document_url_zh ||
+        prev?.document_url_zh ||
+        'https://github.com/Wei-Shaw/sub2api/blob/main/docs/legal/admin-compliance.zh.md',
+      document_url_en:
+        partial?.document_url_en ||
+        prev?.document_url_en ||
+        'https://github.com/Wei-Shaw/sub2api/blob/main/docs/legal/admin-compliance.en.md',
+      ack_phrase_zh: partial?.ack_phrase_zh || prev?.ack_phrase_zh || FALLBACK_ZH_PHRASE,
+      ack_phrase_en: partial?.ack_phrase_en || prev?.ack_phrase_en || FALLBACK_EN_PHRASE,
+      acknowledgement: prev?.acknowledgement
     }
-    initialized.value = true
-    forceVisible.value = true
-  }
+    set({ status, initialized: true, forceVisible: true, ...derive(status, true) })
+  },
 
-  function reset(): void {
+  reset() {
     stateVersion++
-    status.value = null
-    loading.value = false
-    submitting.value = false
-    initialized.value = false
-    forceVisible.value = false
+    set({
+      status: null,
+      loading: false,
+      submitting: false,
+      initialized: false,
+      forceVisible: false,
+      required: false,
+      shouldShow: false
+    })
   }
-
-  return {
-    status,
-    loading,
-    submitting,
-    initialized,
-    required,
-    shouldShow,
-    expectedPhrase,
-    fetchStatus,
-    accept,
-    requireAcknowledgement,
-    reset
-  }
-})
+}))

@@ -10,7 +10,7 @@ import type {
   PromptEventFilters,
   PromptEventPage,
   PromptProbeResult,
-  PromptAuditEndpointDraft,
+  PromptAuditEndpointDraft
 } from './types'
 import { eventFilterPayload, eventQueryParams } from './viewModel'
 
@@ -37,8 +37,8 @@ export async function probeEndpoint(endpoint: PromptAuditEndpointDraft): Promise
       token: endpoint.token || undefined,
       timeout_ms: endpoint.timeout_ms,
       input_limit: endpoint.input_limit,
-      enabled: endpoint.enabled,
-    },
+      enabled: endpoint.enabled
+    }
   })
   return data
 }
@@ -51,10 +51,10 @@ export async function getRuntime(): Promise<PromptAuditRuntime> {
 export async function listEvents(
   filters: PromptEventFilters,
   page: number,
-  pageSize: number,
+  pageSize: number
 ): Promise<PromptEventPage> {
   const { data } = await apiClient.get<PromptEventPage>(`${basePath}/events`, {
-    params: { page, page_size: pageSize, ...eventQueryParams(filters) },
+    params: { page, page_size: pageSize, ...eventQueryParams(filters) }
   })
   return data
 }
@@ -77,28 +77,28 @@ export async function batchDeleteEvents(ids: number[]): Promise<PromptDeleteResu
 export async function previewDelete(filters: PromptEventFilters): Promise<PromptDeletePreview> {
   const { data } = await apiClient.post<PromptDeletePreview>(
     `${basePath}/events/delete-preview`,
-    eventFilterPayload(filters),
+    eventFilterPayload(filters)
   )
   return data
 }
 
 export async function deleteEventsByFilter(
   filters: PromptEventFilters,
-  preview: PromptDeletePreview,
+  preview: PromptDeletePreview
 ): Promise<PromptDeleteResult> {
   const { data } = await apiClient.post<PromptDeleteResult>(`${basePath}/events/delete-by-filter`, {
     filter: eventFilterPayload(filters),
     snapshot_max_id: preview.snapshot_max_id,
     filter_hash: preview.filter_hash,
     confirmation_token: preview.confirmation_token,
-    confirm: true,
+    confirm: true
   })
   return data
 }
 
 export async function listGroups(): Promise<PromptAuditGroup[]> {
   const { data } = await apiClient.get<PromptAuditGroup[]>('/admin/groups/all', {
-    params: { include_inactive: true },
+    params: { include_inactive: true }
   })
   return data
 }
@@ -114,7 +114,7 @@ export const promptAuditAPI = {
   batchDeleteEvents,
   previewDelete,
   deleteEventsByFilter,
-  listGroups,
+  listGroups
 }
 
 export default promptAuditAPI

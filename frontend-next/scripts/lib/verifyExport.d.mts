@@ -1,5 +1,0 @@
-export const RESERVED_TOP_LEVEL_DIRS: string[]
-export function findInlineExecutableScripts(html: string): string[]
-export function verifyIndexHtml(html: string): string[]
-export function verifyTopLevelEntries(entries: string[]): string[]
-export function verifyNoExtraHtml(relativeHtmlFiles: string[]): string[]

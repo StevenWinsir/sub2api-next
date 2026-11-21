@@ -3,7 +3,7 @@ import type {
   PromptAuditDraft,
   PromptAuditEndpointDraft,
   PromptAuditUpdateRequest,
-  PromptEventFilters,
+  PromptEventFilters
 } from './types'
 
 export const DEFAULT_GUARD_MODEL = 'sileader/qwen3guard:0.6b'
@@ -17,7 +17,7 @@ export const SCANNER_CATALOG = [
   { id: 'unethical_acts', label: 'Unethical Acts' },
   { id: 'politically_sensitive_topics', label: 'Politically Sensitive Topics' },
   { id: 'copyright_violation', label: 'Copyright Violation' },
-  { id: 'jailbreak', label: 'Jailbreak' },
+  { id: 'jailbreak', label: 'Jailbreak' }
 ] as const
 
 // Vue props/refs are proxies and cannot be passed to structuredClone in every
@@ -35,8 +35,8 @@ export function configToDraft(config: PromptAuditConfig): PromptAuditDraft {
     endpoints: (config.endpoints ?? []).map((endpoint) => ({
       ...endpoint,
       token: '',
-      clear_token: false,
-    })),
+      clear_token: false
+    }))
   }
 }
 
@@ -53,7 +53,7 @@ export function createDefaultEndpoint(index = 1): PromptAuditEndpointDraft {
     has_token: false,
     token_status: 'missing',
     token: '',
-    clear_token: false,
+    clear_token: false
   }
 }
 
@@ -80,8 +80,8 @@ export function buildUpdateRequest(draft: PromptAuditDraft): PromptAuditUpdateRe
       clear_token: endpoint.clear_token,
       timeout_ms: Number(endpoint.timeout_ms),
       input_limit: Number(endpoint.input_limit),
-      enabled: endpoint.enabled,
-    })),
+      enabled: endpoint.enabled
+    }))
   }
 }
 
@@ -102,7 +102,7 @@ export function emptyEventFilters(): PromptEventFilters {
     prompt_hash: '',
     keyword: '',
     start_at: '',
-    end_at: '',
+    end_at: ''
   }
 }
 
@@ -147,7 +147,7 @@ export const DELETE_RANGE_PRESETS: ReadonlyArray<{ id: DeleteRangePreset; days: 
   { id: '30d', days: 30 },
   { id: '90d', days: 90 },
   { id: 'all', days: null },
-  { id: 'custom', days: null },
+  { id: 'custom', days: null }
 ]
 
 const DAY_MS = 24 * 60 * 60 * 1000
@@ -158,7 +158,7 @@ const DAY_MS = 24 * 60 * 60 * 1000
 export function resolveDeleteRangeFilters(
   filters: PromptEventFilters,
   preset: DeleteRangePreset,
-  now: number = Date.now(),
+  now: number = Date.now()
 ): PromptEventFilters {
   const resolved = cloneData(filters)
   if (preset === 'custom') return resolved

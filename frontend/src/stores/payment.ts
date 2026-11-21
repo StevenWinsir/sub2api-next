@@ -1,108 +1,94 @@
-/**
- * Payment Store
- * Manages payment configuration, current order state, and subscription plans
- */
-
-import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { create } from 'zustand'
 import { paymentAPI } from '@/api/payment'
 import type { PaymentConfig, PaymentOrder, SubscriptionPlan, CreateOrderRequest } from '@/types/payment'
 
-export const usePaymentStore = defineStore('payment', () => {
-  // ==================== State ====================
+interface PaymentStore {
+  config: PaymentConfig | null
+  currentOrder: PaymentOrder | null
+  plans: SubscriptionPlan[]
+  configLoading: boolean
+  configLoaded: boolean
+  fetchConfig: (force?: boolean) => Promise<PaymentConfig | null>
+  fetchPlans: () => Promise<SubscriptionPlan[]>
+  createOrder: (
+    params: CreateOrderRequest
+  ) => Promise<Awaited<ReturnType<typeof paymentAPI.createOrder>>['data']>
+  pollOrderStatus: (orderId: number) => Promise<PaymentOrder | null>
+  clearCurrentOrder: () => void
+}
 
-  /** Payment configuration from backend */
-  const config = ref<PaymentConfig | null>(null)
-  /** Currently active order (for payment flow) */
-  const currentOrder = ref<PaymentOrder | null>(null)
-  /** Available subscription plans */
-  const plans = ref<SubscriptionPlan[]>([])
+let configPromise: Promise<PaymentConfig | null> | null = null
 
-  const configLoading = ref(false)
-  const configLoaded = ref(false)
-  let configPromise: Promise<PaymentConfig | null> | null = null
-
-  // ==================== Actions ====================
-
-  /** Fetch payment configuration */
-  async function fetchConfig(force = false): Promise<PaymentConfig | null> {
-    if (configLoaded.value && !force) return config.value
-    if (configPromise) return configPromise
-
-    configPromise = loadConfig()
-    return configPromise
-  }
-
+export const usePaymentStore = create<PaymentStore>((set, get) => {
   async function loadConfig(): Promise<PaymentConfig | null> {
-    configLoading.value = true
+    set({ configLoading: true })
     try {
       const response = await paymentAPI.getConfig()
-      config.value = response.data
-      configLoaded.value = true
-      return config.value
-    } catch (error: unknown) {
+      set({ config: response.data, configLoaded: true })
+      return response.data
+    } catch (error) {
       console.error('[payment] Failed to fetch config:', error)
       return null
     } finally {
-      configLoading.value = false
+      set({ configLoading: false })
       configPromise = null
     }
   }
 
-  /** Fetch available subscription plans */
-  async function fetchPlans(): Promise<SubscriptionPlan[]> {
-    try {
-      const response = await paymentAPI.getPlans()
-      // Backend returns features as newline-separated string; parse to array
-      plans.value = (response.data || []).map((p: Omit<SubscriptionPlan, 'features'> & { features: string | string[] }) => ({
-        ...p,
-        features: typeof p.features === 'string'
-          ? p.features.split('\n').map((f: string) => f.trim()).filter(Boolean)
-          : (p.features || []),
-      }))
-      return plans.value
-    } catch (error: unknown) {
-      console.error('[payment] Failed to fetch plans:', error)
-      return []
-    }
-  }
-
-  /** Create a new order and set it as current */
-  async function createOrder(params: CreateOrderRequest) {
-    const response = await paymentAPI.createOrder(params)
-    return response.data
-  }
-
-  /** Poll order status by ID (read-only, no upstream check) */
-  async function pollOrderStatus(orderId: number): Promise<PaymentOrder | null> {
-    try {
-      const response = await paymentAPI.getOrder(orderId)
-      const order = response.data
-      if (currentOrder.value?.id === orderId) {
-        currentOrder.value = order
-      }
-      return order
-    } catch (error: unknown) {
-      console.error('[payment] Failed to poll order status:', error)
-      return null
-    }
-  }
-
-  /** Clear current order state */
-  function clearCurrentOrder() {
-    currentOrder.value = null
-  }
-
   return {
-    config,
-    currentOrder,
-    plans,
-    configLoading,
-    configLoaded,
-    fetchConfig,
-    fetchPlans,
-    createOrder,
-    pollOrderStatus,
-    clearCurrentOrder
+    config: null,
+    currentOrder: null,
+    plans: [],
+    configLoading: false,
+    configLoaded: false,
+
+    async fetchConfig(force = false) {
+      if (get().configLoaded && !force) return get().config
+      if (configPromise) return configPromise
+      configPromise = loadConfig()
+      return configPromise
+    },
+
+    async fetchPlans() {
+      try {
+        const response = await paymentAPI.getPlans()
+        const plans = (response.data || []).map(
+          (p: Omit<SubscriptionPlan, 'features'> & { features: string | string[] }) => ({
+            ...p,
+            features:
+              typeof p.features === 'string'
+                ? p.features
+                    .split('\n')
+                    .map((f: string) => f.trim())
+                    .filter(Boolean)
+                : p.features || []
+          })
+        ) as SubscriptionPlan[]
+        set({ plans })
+        return plans
+      } catch (error) {
+        console.error('[payment] Failed to fetch plans:', error)
+        return []
+      }
+    },
+
+    async createOrder(params) {
+      const response = await paymentAPI.createOrder(params)
+      return response.data
+    },
+
+    async pollOrderStatus(orderId) {
+      try {
+        const response = await paymentAPI.getOrder(orderId)
+        const order = response.data
+        if (get().currentOrder?.id === orderId) set({ currentOrder: order })
+        return order
+      } catch (error) {
+        console.error('[payment] Failed to poll order status:', error)
+        return null
+      }
+    },
+
+    clearCurrentOrder: () => set({ currentOrder: null })
   }
 })

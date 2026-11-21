@@ -35,6 +35,8 @@ backend/.gocache/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/.next/
+frontend/out/
 *.local
 *.tsbuildinfo
 vite.config.d.ts
@@ -157,6 +159,10 @@ docs/screenshots/*
 .serena/
 .codex/
 frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+frontend/tsconfig.tsbuildinfo
+frontend/src/generated/
 aicodex
 output/
 .codegraph/
@@ -167,6 +173,6 @@ issues/
 # 本地闭源插件开发目录及构建产物不进入 Sub2API 仓库
 /plugins/
 
-# frontend-next build scripts must be tracked
-!frontend-next/scripts/
-!frontend-next/scripts/**
+# frontend build scripts must be tracked
+!frontend/scripts/
+!frontend/scripts/**

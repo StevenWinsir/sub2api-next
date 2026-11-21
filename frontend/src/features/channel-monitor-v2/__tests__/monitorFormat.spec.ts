@@ -14,7 +14,7 @@ import {
   healthStateClass,
   scoreToBand,
   tokensPerSecondFromTpm,
-  ttftDisplayState,
+  ttftDisplayState
 } from '../monitorFormat'
 import type { MonitorHealth } from '@/api/channelMonitorV2'
 
@@ -96,7 +96,7 @@ describe('monitorFormat accuracy', () => {
       error_rate_score: 40,
       ttft_score: 100,
       cache_score: 50,
-      minimum_sample: 20,
+      minimum_sample: 20
     }
     expect(healthScoreClass(health, 'overall', 10)).toBe('health-score5')
     expect(healthScoreClass(health, 'success', 10)).toBe('health-score4')
@@ -122,7 +122,7 @@ describe('monitorFormat accuracy', () => {
       error_rate_score: 100,
       ttft_score: null,
       cache_score: 100,
-      minimum_sample: 20,
+      minimum_sample: 20
     }
     expect(healthScoreClass(health, 'ttft', 200)).toBe('health-unknown')
     expect(ttftDisplayState('critical', { p50_ms: null, sample_count: 0 })).toBe('unknown')
